@@ -1,28 +1,30 @@
 import time
-from functools import lru_cache
+import numpy as np
 
-@lru_cache(maxsize=1024)
-def heavy_computation(data):
-    # Simulated expensive computation
-    time.sleep(1)  # Simulating time delay
-    return sum(data)  # Returning sum as the result
-
-class Processor:
+class DataProcessor:
     def __init__(self, data):
         self.data = data
-        self.results = []
 
-    def process_data(self):
-        for item in self.data:
-            # Using memoization for performance
-            result = heavy_computation(tuple(item))
-            self.results.append(result)
+    def preprocess(self):
+        start_time = time.time()
+        self.data = np.array(self.data)
+        # Normalizing data to improve processing
+        self.data = (self.data - np.mean(self.data)) / np.std(self.data)
+        end_time = time.time()
+        print(f"Preprocessing time: {end_time - start_time:.4f} seconds")
 
-    def get_results(self):
-        return self.results
+    def process(self):
+        start_time = time.time()
+        # Using vectorized operations for performance
+        result = np.sum(self.data ** 2)
+        end_time = time.time()
+        print(f"Processing time: {end_time - start_time:.4f} seconds")
+        return result
 
+# Example usage
 if __name__ == '__main__':
-    data = [list(range(1000))] * 10  # Sample data with repeats
-    processor = Processor(data)
-    processor.process_data()
-    print(processor.get_results())
+    raw_data = [i for i in range(100000)]  # Example data
+    processor = DataProcessor(raw_data)
+    processor.preprocess()
+    result = processor.process()
+    print(f"Result of processing: {result}")
