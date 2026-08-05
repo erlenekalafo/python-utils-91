@@ -1,20 +1,40 @@
 import logging
-from logging.handlers import RotatingFileHandler
 
-def setup_logger(log_file='app.log', max_bytes=10*1024*1024, backup_count=5):
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
-    handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    return logger
+# Setting up a basic logger configuration
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-# Example usage if this module is run directly
+class Logger:
+    def __init__(self, name):
+        self.logger = logging.getLogger(name)
+
+    def log_info(self, message):
+        self.logger.info(message)
+
+    def log_warning(self, message):
+        self.logger.warning(message)
+
+    def log_error(self, message):
+        self.logger.error(message)
+
+    def log_debug(self, message):
+        self.logger.debug(message)
+
+# Input validation function
+
+def validate_input(user_input):
+    if isinstance(user_input, str) and user_input:
+        return True
+    return False
+
 if __name__ == '__main__':
-    log = setup_logger()
-    log.debug('This is a debug message')
-    log.info('This is an info message')
-    log.warning('This is a warning message')
-    log.error('This is an error message')
-    log.critical('This is a critical message')
+    logger = Logger(__name__)
+    while True:
+        user_input = input('Enter a message to log (or "exit" to quit): ')
+        if user_input.lower() == 'exit':
+            logger.log_info('Exiting the program.')
+            break
+        if validate_input(user_input):
+            logger.log_info(user_input)
+        else:
+            logger.log_warning('Invalid input. Please enter a non-empty string.')
