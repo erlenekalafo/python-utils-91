@@ -1,33 +1,33 @@
-MAX_RETRIES = 5
-TIMEOUT = 30
-API_ENDPOINT = 'https://api.example.com'
-STATUS_CODES = {
-    'OK': 200,
-    'CREATED': 201,
-    'NO_CONTENT': 204,
-    'BAD_REQUEST': 400,
-    'UNAUTHORIZED': 401,
-    'FORBIDDEN': 403,
-    'NOT_FOUND': 404,
-    'INTERNAL_SERVER_ERROR': 500,
+from typing import Final, Tuple, Dict
+
+# Constants for application configuration
+
+# Database configuration constants
+DATABASE_URL: Final[str] = "sqlite:///app.db"
+DATABASE_TIMEOUT: Final[int] = 30
+
+# HTTP Status Codes
+STATUS_OK: Final[int] = 200
+STATUS_NOT_FOUND: Final[int] = 404
+STATUS_INTERNAL_SERVER_ERROR: Final[int] = 500
+
+# Default settings
+DEFAULT_SETTINGS: Final[Dict[str, str]] = {
+    "app_name": "MyApp",
+    "version": "1.0.0",
+    "debug": "true"
 }
 
-DEFAULT_SETTINGS = {
-    'retries': MAX_RETRIES,
-    'timeout': TIMEOUT,
+# Supported file formats
+SUPPORTED_FILE_FORMATS: Final[Tuple[str, ...]] = ("csv", "json", "xml")
+
+# API Endpoints
+API_ENDPOINTS: Final[Dict[str, str]] = {
+    "get_user": "/api/user",
+    "create_user": "/api/user/create",
+    "update_user": "/api/user/update",
+    "delete_user": "/api/user/delete"
 }
 
-LOGGING_LEVELS = {
-    'DEBUG': 'DEBUG',
-    'INFO': 'INFO',
-    'WARNING': 'WARNING',
-    'ERROR': 'ERROR',
-    'CRITICAL': 'CRITICAL',
-}
-
-SUPPORTED_FORMATS = ['json', 'xml', 'csv']
-
-API_KEYS = {
-    'service_x': 'YOUR_API_KEY_FOR_SERVICE_X',
-    'service_y': 'YOUR_API_KEY_FOR_SERVICE_Y',
-}
+# Timeout values
+REQUEST_TIMEOUT: Final[int] = 10  # in seconds
