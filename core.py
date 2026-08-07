@@ -1,34 +1,55 @@
-import time
-import requests
+from typing import List, Any
 
 
-def retry_request(url, max_retries=3, delay=2):
+def process_data(data: List[Any]) -> List[Any]:
     """
-    Makes a GET request to the specified URL with retry logic.
-    Retries the request if it fails due to network-related exceptions.
+    Processes a list of data.
     
-    :param url: The URL to send the request to.
-    :param max_retries: Maximum number of retry attempts.
-    :param delay: Delay in seconds between retries.
-    :return: The response object if the request is successful; raises an exception otherwise.
+    Args:
+        data (List[Any]): A list of data items to be processed.
+    
+    Returns:
+        List[Any]: A list of processed data items.
     """
-    for attempt in range(max_retries):
-        try:
-            response = requests.get(url)
-            response.raise_for_status()  # Raises an error for bad responses
-            return response
-        except requests.RequestException as e:
-            if attempt < max_retries - 1:
-                time.sleep(delay)  # Wait before retrying
-                continue  # Try again
-            else:
-                raise e  # Raise the last exception if all retries failed
+    return [item for item in data if item is not None]
 
 
-if __name__ == '__main__':
-    url = 'https://api.example.com/data'
-    try:
-        response = retry_request(url)
-        print(response.json())  # Process the successful response
-    except Exception as e:
-        print(f'Error occurred: {e}')  # Handle errors accordingly
+def sum_numbers(numbers: List[float]) -> float:
+    """
+    Calculates the sum of a list of numbers.
+    
+    Args:
+        numbers (List[float]): A list of numbers to sum.
+    
+    Returns:
+        float: The sum of the numbers.
+    """
+    return sum(numbers)
+
+
+def find_max(numbers: List[float]) -> float:
+    """
+    Finds the maximum number in a list of numbers.
+    
+    Args:
+        numbers (List[float]): A list of numbers.
+    
+    Returns:
+        float: The maximum number in the list.
+    """
+    if not numbers:
+        raise ValueError("The list is empty")
+    return max(numbers)
+
+
+def is_even(number: int) -> bool:
+    """
+    Checks if a number is even.
+    
+    Args:
+        number (int): The number to check.
+    
+    Returns:
+        bool: True if the number is even, False otherwise.
+    """
+    return number % 2 == 0
