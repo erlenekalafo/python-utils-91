@@ -1,33 +1,24 @@
-from typing import Final, Tuple, Dict
+import time
+import random
 
-# Constants for application configuration
+DEFAULT_MAX_RETRIES = 5
+DEFAULT_BACKOFF_FACTOR = 0.5
 
-# Database configuration constants
-DATABASE_URL: Final[str] = "sqlite:///app.db"
-DATABASE_TIMEOUT: Final[int] = 30
+# Defining some standard error class for network exceptions
+class NetworkException(Exception):
+    pass
 
-# HTTP Status Codes
-STATUS_OK: Final[int] = 200
-STATUS_NOT_FOUND: Final[int] = 404
-STATUS_INTERNAL_SERVER_ERROR: Final[int] = 500
+# A function to implement exponential backoff retry logic
 
-# Default settings
-DEFAULT_SETTINGS: Final[Dict[str, str]] = {
-    "app_name": "MyApp",
-    "version": "1.0.0",
-    "debug": "true"
-}
-
-# Supported file formats
-SUPPORTED_FILE_FORMATS: Final[Tuple[str, ...]] = ("csv", "json", "xml")
-
-# API Endpoints
-API_ENDPOINTS: Final[Dict[str, str]] = {
-    "get_user": "/api/user",
-    "create_user": "/api/user/create",
-    "update_user": "/api/user/update",
-    "delete_user": "/api/user/delete"
-}
-
-# Timeout values
-REQUEST_TIMEOUT: Final[int] = 10  # in seconds
+def retry_operation(func, max_retries=DEFAULT_MAX_RETRIES, backoff_factor=DEFAULT_BACKOFF_FACTOR, *args, **kwargs):
+    retries = 0
+    while retries < max_retries:
+        try:
+            return func(*args, **kwargs)
+        except NetworkException as e:
+            retries += 1
+            wait_time = backoff_factor * (2 ** (retries - 1)) + random.uniform(0, 1)
+            time.sleep(wait_time)
+            if retries == max_retries:
+                raise e
+    return None
