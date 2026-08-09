@@ -1,55 +1,38 @@
-from typing import List, Any
+import json
+from typing import Any, Dict
 
 
-def process_data(data: List[Any]) -> List[Any]:
-    """
-    Processes a list of data.
-    
-    Args:
-        data (List[Any]): A list of data items to be processed.
-    
-    Returns:
-        List[Any]: A list of processed data items.
-    """
-    return [item for item in data if item is not None]
+def load_json(file_path: str) -> Dict[str, Any]:
+    """Load JSON data from a file."""
+    try:
+        with open(file_path, 'r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        raise Exception(f'Error: The file {file_path} was not found.')
+    except json.JSONDecodeError:
+        raise Exception(f'Error: The file {file_path} does not contain valid JSON.')
 
 
-def sum_numbers(numbers: List[float]) -> float:
-    """
-    Calculates the sum of a list of numbers.
-    
-    Args:
-        numbers (List[float]): A list of numbers to sum.
-    
-    Returns:
-        float: The sum of the numbers.
-    """
-    return sum(numbers)
+def save_json(data: Dict[str, Any], file_path: str) -> None:
+    """Save data as JSON to a file."""
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
 
 
-def find_max(numbers: List[float]) -> float:
-    """
-    Finds the maximum number in a list of numbers.
-    
-    Args:
-        numbers (List[float]): A list of numbers.
-    
-    Returns:
-        float: The maximum number in the list.
-    """
-    if not numbers:
-        raise ValueError("The list is empty")
-    return max(numbers)
+def merge_dicts(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
+    """Merge two dictionaries with dict2 overwriting dict1 values."""
+    merged = dict1.copy()
+    merged.update(dict2)
+    return merged
 
 
-def is_even(number: int) -> bool:
-    """
-    Checks if a number is even.
-    
-    Args:
-        number (int): The number to check.
-    
-    Returns:
-        bool: True if the number is even, False otherwise.
-    """
-    return number % 2 == 0
+def flatten_dict(data: Dict[str, Any], parent_key: str = '', sep: str = '.') -> Dict[str, Any]:
+    """Flatten a nested dictionary with a custom separator."""
+    items = {}
+    for k, v in data.items():
+        new_key = f'{parent_key}{sep}{k}' if parent_key else k
+        if isinstance(v, dict):
+            items.update(flatten_dict(v, new_key, sep=sep))
+        else:
+            items[new_key] = v
+    return items
