@@ -1,36 +1,33 @@
 import logging
 
-class CustomLogger:
-    def __init__(self, name, level=logging.INFO):
+# Configure logging settings
+logging.basicConfig(level=logging.INFO, 
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+class Logger:
+    def __init__(self, name):
         self.logger = logging.getLogger(name)
-        self.logger.setLevel(level)
-        ch = logging.StreamHandler()
-        ch.setLevel(level)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ch.setFormatter(formatter)
-        self.logger.addHandler(ch)
 
-    def log_info(self, message):
-        try:
-            self.logger.info(message)
-        except Exception as e:
-            self.logger.error(f'Error logging info: {str(e)}')
+    def info(self, message):
+        self.logger.info(message)
 
-    def log_warning(self, message):
-        try:
-            self.logger.warning(message)
-        except Exception as e:
-            self.logger.error(f'Error logging warning: {str(e)}')
+    def warning(self, message):
+        self.logger.warning(message)
 
-    def log_error(self, message):
-        try:
-            self.logger.error(message)
-        except Exception as e:
-            self.logger.error(f'Error logging error: {str(e)}')
+    def error(self, message):
+        self.logger.error(message)
 
-# Example usage
+    def debug(self, message):
+        self.logger.debug(message)
+
+    def exception(self, message):
+        self.logger.exception(message)
+
+# Example usage:
 if __name__ == '__main__':
-    custom_logger = CustomLogger(__name__)
-    custom_logger.log_info('This is an info message.')
-    custom_logger.log_warning('This is a warning message.')
-    custom_logger.log_error('This is an error message.')
+    log = Logger(__name__)
+    log.info('This is an info message')
+    log.warning('This is a warning message')
+    log.error('This is an error message')
+    log.debug('This is a debug message')
+    log.exception('This is an exception message')
