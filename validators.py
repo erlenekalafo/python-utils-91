@@ -1,33 +1,35 @@
 import re
 
-# Function to validate cryptocurrency addresses
+# Validate an email address using regex
 
-def is_valid_address(address: str, currency: str) -> bool:
-    """Validate the cryptocurrency address based on currency type."""
-    patterns = {
-        'bitcoin': r'^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$',
-        'ethereum': r'^0x[a-fA-F0-9]{40}$',
-        'litecoin': r'^[LM3][a-zA-Z0-9]{26,33}$'
-    }
+def is_valid_email(email: str) -> bool:
+    """Check if the email format is valid."""
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(email_regex, email) is not None
 
-    pattern = patterns.get(currency.lower())
-    if pattern:
-        return re.match(pattern, address) is not None
-    return False
+# Validate a cryptocurrency address (example for Bitcoin)
 
-# Function to validate transaction amount
+def is_valid_btc_address(address: str) -> bool:
+    """Check if the Bitcoin address format is valid."""
+    if len(address) < 26 or len(address) > 35:
+        return False
+    # Basic regex for Bitcoin address
+    btc_regex = r'^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$'
+    return re.match(btc_regex, address) is not None
 
-def is_valid_amount(amount: float) -> bool:
-    """Check if the transaction amount is valid (greater than zero)."""
-    return amount > 0
+# Validate if a string is a numeric value
 
-# Example usage within a main processing loop
+def is_numeric(value: str) -> bool:
+    """Check if the value is numeric."""
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
 
-def process_transaction(address: str, currency: str, amount: float) -> None:
-    if not is_valid_address(address, currency):
-        raise ValueError('Invalid cryptocurrency address')
-    if not is_valid_amount(amount):
-        raise ValueError('Transaction amount must be greater than zero')
+# Validate if a string is a hex color code
 
-    # Proceed with transaction processing here
-    print(f'Transacting {amount} {currency} to {address}')
+def is_valid_hex_color(color: str) -> bool:
+    """Check if the string is a valid hex color code."""
+    hex_color_regex = r'^#[0-9a-fA-F]{6}$'
+    return re.match(hex_color_regex, color) is not None
