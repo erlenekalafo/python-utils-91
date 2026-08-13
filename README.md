@@ -1,56 +1,46 @@
-# python-utils-91
+# python-utils-91 
 
-A collection of Python utility functions designed to simplify and enhance everyday programming tasks. From handling file operations to formatting strings, this library aims to provide lightweight, reusable tools for developers.
+A collection of powerful and simple utilities designed to streamline cryptocurrency data management and analysis using Python. This library offers developers quick access to market data, price conversions, and wallet balances, making it an essential tool for anyone working in the crypto space.
 
 ## Features
 
-- **File Handling:** Easily read, write, and manipulate files with built-in methods to streamline common file operations.
-- **String Formatting:** Simplify string manipulation with versatile functions for trimming, padding, and formatting strings.
-- **Data Validation:** Quickly validate input data types, formats, and structures, helping reduce the likelihood of runtime errors.
-- **Date and Time Utilities:** Simplify date and time manipulations, including parsing, formatting, and arithmetic operations.
+- **Market Data Access**: Fetch real-time price data and historical market trends from popular cryptocurrency exchanges.
+- **Currency Conversion**: Easily convert between different cryptocurrencies and fiat currencies with live rates.
+- **Wallet Balance Tracking**: Monitor your crypto wallet balances across multiple blockchain networks with straightforward API calls.
+- **Data Visualization Tools**: Generate insightful visualizations of market trends and portfolio performance using Matplotlib and Seaborn integration.
 
 ## Installation
 
-To install `python-utils-91`, you can use pip. Open your terminal and run:
+To install the `python-utils-91` package, you can use pip by running the following command:
 
 ```bash
 pip install python-utils-91
 ```
 
-If you prefer to clone the repository directly, you can do so with the following command:
+## Basic Usage Example
 
-```bash
-git clone https://github.com/yourusername/python-utils-91.git
-cd python-utils-91
-```
-
-Then install the required packages with:
-
-```bash
-pip install -r requirements.txt
-```
-
-## Basic Usage
-
-Here is a simple example demonstrating how to use some of the utility functions:
+Here’s a simple example to get you started with fetching the latest Bitcoin price and converting it to Ethereum.
 
 ```python
-from python_utils import FileUtils, StringUtils, DateUtils
+from crypto_utils import CryptoUtils
 
-# Using FileUtils to read a file
-content = FileUtils.read_file('example.txt')
-print(content)
+# Initialize the utility class
+utils = CryptoUtils()
 
-# Using StringUtils to format a string
-formatted_string = StringUtils.format_string("Hello {name}", name="World")
-print(formatted_string)
+# Get the latest Bitcoin price in USD
+btc_price = utils.get_market_price('BTC', 'USD')
+print(f"Current Bitcoin Price: ${btc_price}")
 
-# Using DateUtils to get today's date in a specific format
-today = DateUtils.get_today_formatted("%Y-%m-%d")
-print(f"Today's date is: {today}")
+# Convert 1 Bitcoin to Ethereum
+eth_value = utils.convert_currency('BTC', 'ETH', 1)
+print(f"1 Bitcoin is worth {eth_value} Ethereum.")
 ```
+
+With just a few lines of code, you can access critical cryptocurrency data and perform conversions seamlessly.
 
 ## License
 
-![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)  
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)  
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+
+Feel free to contribute and enhance the utility of this library in the ever-evolving crypto ecosystem!
