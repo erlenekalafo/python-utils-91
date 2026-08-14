@@ -1,22 +1,26 @@
-class CustomError(Exception):
-    """Base class for other exceptions"""
+class CryptoError(Exception):
+    """Base class for exceptions in this module."""
     pass
 
-class NotFoundError(CustomError):
-    """Exception raised for not found errors"""
-    def __init__(self, message="Item not found."):
-        self.message = message
+class InsufficientFundsError(CryptoError):
+    """Raised when an account has insufficient funds."""
+    def __init__(self, balance, amount):
+        self.balance = balance
+        self.amount = amount
+        self.message = f"Insufficient funds: Available {balance}, required {amount}."
         super().__init__(self.message)
 
-class ValidationError(CustomError):
-    """Exception raised for validation errors"""
-    def __init__(self, field, message):
-        self.field = field
-        self.message = message
-        super().__init__(f'{field}: {message}')
+class InvalidTransactionError(CryptoError):
+    """Raised when a transaction is invalid."""
+    def __init__(self, transaction):
+        self.transaction = transaction
+        self.message = f"Invalid transaction: {transaction}."
+        super().__init__(self.message)
 
-class ConnectionError(CustomError):
-    """Exception raised for connection errors"""
-    def __init__(self, message="Connection failed."):
-        self.message = message
+class NetworkError(CryptoError):
+    """Raised for network-related issues."""
+    def __init__(self, url, status_code):
+        self.url = url
+        self.status_code = status_code
+        self.message = f"Network error at {url}, status code: {status_code}."
         super().__init__(self.message)
