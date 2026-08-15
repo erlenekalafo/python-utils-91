@@ -1,35 +1,36 @@
-import re
+import time
+import requests
+from requests.exceptions import RequestException
 
-# Validate an email address using regex
+def retry_request(url, max_retries=3, backoff_factor=1):
+    """
+    Perform an HTTP GET request with retry logic.
 
-def is_valid_email(email: str) -> bool:
-    """Check if the email format is valid."""
-    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return re.match(email_regex, email) is not None
+    Args:
+        url (str): The URL to request.
+        max_retries (int): The maximum number of retries before failing.
+        backoff_factor (float): The backoff factor for retry delay.
 
-# Validate a cryptocurrency address (example for Bitcoin)
+    Returns:
+        Response: The HTTP response from the request.
+    """
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            return response
+        except RequestException as e:
+            if attempt < max_retries - 1:
+                sleep_time = backoff_factor * (2 ** attempt)
+                time.sleep(sleep_time)
+                continue
+            else:
+                raise e
 
-def is_valid_btc_address(address: str) -> bool:
-    """Check if the Bitcoin address format is valid."""
-    if len(address) < 26 or len(address) > 35:
-        return False
-    # Basic regex for Bitcoin address
-    btc_regex = r'^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$'
-    return re.match(btc_regex, address) is not None
-
-# Validate if a string is a numeric value
-
-def is_numeric(value: str) -> bool:
-    """Check if the value is numeric."""
+# Example usage
+if __name__ == '__main__':
     try:
-        float(value)
-        return True
-    except ValueError:
-        return False
-
-# Validate if a string is a hex color code
-
-def is_valid_hex_color(color: str) -> bool:
-    """Check if the string is a valid hex color code."""
-    hex_color_regex = r'^#[0-9a-fA-F]{6}$'
-    return re.match(hex_color_regex, color) is not None
+        response = retry_request('https://api.example.com/data')
+        print(response.json())
+    except Exception as ex:
+        print(f'Failed to retrieve data: {ex}')
