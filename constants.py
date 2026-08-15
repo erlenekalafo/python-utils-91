@@ -1,28 +1,41 @@
-# Constants for the application
+CRYPTO_CURRENCIES = ['BTC', 'ETH', 'LTC', 'XRP']
 
-# Status codes
-SUCCESS = 200
-ERROR = 500
-NOT_FOUND = 404
-# Default configuration values
-DEFAULT_TIMEOUT = 30
-MAX_RETRIES = 5
-# Settings for user roles
-ADMIN_ROLE = 'admin'
-USER_ROLE = 'user'
-GUEST_ROLE = 'guest'
-# Error messages
-INVALID_INPUT_MSG = 'Invalid input provided. Please check and try again.'
-ACCESS_DENIED_MSG = 'You do not have permission to access this resource.'
-# Database configuration
-DB_HOST = 'localhost'
-DB_PORT = 5432
-DB_NAME = 'my_database'
-DB_USER = 'user'
-DB_PASSWORD = 'password'
-# Logging configurations
-LOG_LEVEL = 'DEBUG'
-LOG_FILE = 'app.log'
-# API configurations
-API_URL = 'https://api.example.com'
-API_KEY = 'your_api_key_here'
+API_URLS = {
+    'coinmarketcap': 'https://api.coinmarketcap.com/v1/',
+    'coingecko': 'https://api.coingecko.com/api/v3/',
+}
+
+DEFAULT_TIMEOUT = 10  # seconds
+
+HEADER = {
+    'User-Agent': 'python-utils-91 v1.0',
+    'Accept': 'application/json',
+}
+
+CURRENCY_SYMBOLS = {
+    'BTC': '₿',
+    'ETH': 'Ξ',
+    'LTC': 'Ł',
+    'XRP': 'XRP',
+}
+
+# This is a mapping of currency pairs to their respective display names
+CURRENCY_PAIRS = {
+    'BTC/USD': 'Bitcoin to US Dollar',
+    'ETH/USD': 'Ethereum to US Dollar',
+    'LTC/USD': 'Litecoin to US Dollar',
+    'XRP/USD': 'Ripple to US Dollar',
+}
+
+# Threshold values for trading strategies
+PRICE_ALERT_THRESHOLD = 100  # USD
+VOLUME_ALERT_THRESHOLD = 1000  # Number of coins
+
+# Slippage percentage for trades
+SLIPPAGE_PERCENTAGE = 1.5
+
+# Dictionary for storing API keys or secrets for different exchanges
+API_KEYS = {
+    'binance': 'your_binance_api_key',
+    'coinbase': 'your_coinbase_api_key',
+}
