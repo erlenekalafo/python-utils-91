@@ -1,30 +1,33 @@
 import logging
-import logging.handlers
 
-def setup_logger(log_file='app.log', max_bytes=5 * 1024 * 1024, backup_count=3):
-    logger = logging.getLogger('CryptoLogger')
-    logger.setLevel(logging.DEBUG)
-    
-    # Create a file handler that logs even debug messages
-    handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
-    handler.setLevel(logging.DEBUG)
-    
-    # Create a console handler for displaying logs in the terminal
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    
-    # Create a formatter and set it for the handlers
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    console_handler.setFormatter(formatter)
-    
-    # Add the handlers to the logger
-    logger.addHandler(handler)
-    logger.addHandler(console_handler)
-    
-    return logger
+class Logger:
+    def __init__(self, name):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)  # Set default logging level
+        ch = logging.StreamHandler()  # Create console handler
+        ch.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        ch.setFormatter(formatter)  # Set formatter for handler
+        self.logger.addHandler(ch)
 
-# Example of usage
+    def info(self, message):
+        self.logger.info(message)
+
+    def debug(self, message):
+        self.logger.debug(message)
+
+    def warning(self, message):
+        self.logger.warning(message)
+
+    def error(self, message):
+        self.logger.error(message)
+
+    def critical(self, message):
+        self.logger.critical(message)
+
+# Example usage:
 if __name__ == '__main__':
-    logger = setup_logger()
-    logger.info('Logger is set up and running!')
+    log = Logger('CryptoLogger')
+    log.info('Logger initialized successfully.')
+    log.warning('This is a warning message.')
+    log.error('This is an error message.')
