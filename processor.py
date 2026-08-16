@@ -1,31 +1,33 @@
 import json
-from validators import validate_transaction_input
+import requests
+from typing import List
 
-def process_transactions(transactions):
-    processed_transactions = []
-    for transaction in transactions:
-        try:
-            # Validate the input for each transaction
-            if validate_transaction_input(transaction):
-                # Process the transaction if valid
-                processed_transaction = process_transaction(transaction)
-                processed_transactions.append(processed_transaction)
-            else:
-                print(f'Invalid transaction input: {transaction}')
-        except Exception as e:
-            print(f'Error processing transaction: {e}')
-    return processed_transactions
+class CryptoProcessor:
+    def __init__(self, api_url: str):
+        self.api_url = api_url
+        self.cache = {}
 
+    def fetch_data(self, coin_ids: List[str]) -> dict:
+        # Use cached results if available
+        data_to_fetch = [coin for coin in coin_ids if coin not in self.cache]
+        if not data_to_fetch:
+            return self.get_cached_data(coin_ids)
 
-def process_transaction(transaction):
-    # Mock transaction processing
-    return { 'status': 'processed', 'data': transaction }
+        response = requests.get(self.api_url, params={'ids': ','.join(data_to_fetch)})
+        response.raise_for_status()
+        data = response.json()
 
+        # Cache the fetched data
+        for coin in data:
+            self.cache[coin['id']] = coin
+
+        return {coin_id: self.cache[coin_id] for coin_id in coin_ids}
+
+    def get_cached_data(self, coin_ids: List[str]) -> dict:
+        return {coin_id: self.cache[coin_id] for coin_id in coin_ids if coin_id in self.cache}
+
+# Example of usage:
 if __name__ == '__main__':
-    sample_transactions = [
-        {'amount': 100, 'currency': 'BTC', 'to': 'address1'},
-        {'amount': -50, 'currency': 'ETH', 'to': 'address2'},  # Invalid amount
-        {'amount': 200, 'currency': 'BTC', 'to': ''}  # Missing address
-    ]
-    results = process_transactions(sample_transactions)
-    print(json.dumps(results, indent=2))
+    processor = CryptoProcessor('https://api.coingecko.com/api/v3/coins/markets')
+    data = processor.fetch_data(['bitcoin', 'ethereum'])
+    print(json.dumps(data, indent=2))
