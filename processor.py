@@ -1,31 +1,31 @@
 import json
-from typing import Any, Dict, List
+from validators import validate_transaction_input
+
+def process_transactions(transactions):
+    processed_transactions = []
+    for transaction in transactions:
+        try:
+            # Validate the input for each transaction
+            if validate_transaction_input(transaction):
+                # Process the transaction if valid
+                processed_transaction = process_transaction(transaction)
+                processed_transactions.append(processed_transaction)
+            else:
+                print(f'Invalid transaction input: {transaction}')
+        except Exception as e:
+            print(f'Error processing transaction: {e}')
+    return processed_transactions
 
 
-def load_json(file_path: str) -> Dict[str, Any]:
-    """Load JSON data from a file."""
-    with open(file_path, 'r') as file:
-        return json.load(file)
+def process_transaction(transaction):
+    # Mock transaction processing
+    return { 'status': 'processed', 'data': transaction }
 
-
-def save_json(data: Dict[str, Any], file_path: str) -> None:
-    """Save data as JSON to a file."""
-    with open(file_path, 'w') as file:
-        json.dump(data, file, indent=4)
-
-
-def filter_dict(data: Dict[str, Any], keys: List[str]) -> Dict[str, Any]:
-    """Return a dictionary with only the specified keys."""
-    return {key: data[key] for key in keys if key in data}
-
-
-def merge_dicts(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
-    """Merge two dictionaries into one."""
-    merged = dict1.copy()
-    merged.update(dict2)
-    return merged
-
-
-def flatten_list(nested_list: List[List[Any]]) -> List[Any]:
-    """Flatten a list of lists into a single list."""
-    return [item for sublist in nested_list for item in sublist]
+if __name__ == '__main__':
+    sample_transactions = [
+        {'amount': 100, 'currency': 'BTC', 'to': 'address1'},
+        {'amount': -50, 'currency': 'ETH', 'to': 'address2'},  # Invalid amount
+        {'amount': 200, 'currency': 'BTC', 'to': ''}  # Missing address
+    ]
+    results = process_transactions(sample_transactions)
+    print(json.dumps(results, indent=2))
