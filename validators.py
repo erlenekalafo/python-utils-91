@@ -1,36 +1,21 @@
-import time
-import requests
-from requests.exceptions import RequestException
+import re
 
-def retry_request(url, max_retries=3, backoff_factor=1):
-    """
-    Perform an HTTP GET request with retry logic.
+class InputValidationError(Exception):
+    pass
 
-    Args:
-        url (str): The URL to request.
-        max_retries (int): The maximum number of retries before failing.
-        backoff_factor (float): The backoff factor for retry delay.
+def validate_address(address):
+    if not re.match(r'^0x[a-fA-F0-9]{40}$', address):
+        raise InputValidationError("Invalid Ethereum address format.")
 
-    Returns:
-        Response: The HTTP response from the request.
-    """
-    for attempt in range(max_retries):
-        try:
-            response = requests.get(url)
-            response.raise_for_status()
-            return response
-        except RequestException as e:
-            if attempt < max_retries - 1:
-                sleep_time = backoff_factor * (2 ** attempt)
-                time.sleep(sleep_time)
-                continue
-            else:
-                raise e
+def validate_amount(amount):
+    if not isinstance(amount, (int, float)) or amount <= 0:
+        raise InputValidationError("Amount must be a positive number.")
 
-# Example usage
-if __name__ == '__main__':
+def validate_transaction(address, amount):
     try:
-        response = retry_request('https://api.example.com/data')
-        print(response.json())
-    except Exception as ex:
-        print(f'Failed to retrieve data: {ex}')
+        validate_address(address)
+        validate_amount(amount)
+    except InputValidationError as e:
+        print(f'Input validation error: {e}')
+        return False
+    return True
