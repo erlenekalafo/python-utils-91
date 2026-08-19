@@ -1,39 +1,41 @@
-import json
+from typing import Dict, Any, Union
 
-class CryptoProcessor:
-    def __init__(self):
-        self.supported_coins = ['BTC', 'ETH', 'LTC']
+class CryptoAnalyzer:
+    """Class for analyzing cryptocurrency data."""
 
-    def validate_input(self, coin):
-        if coin not in self.supported_coins:
-            raise ValueError(f'Unsupported coin: {coin}')
+    def __init__(self, data: Dict[str, Union[int, float]]) -> None:
+        """Initializes the CryptoAnalyzer with data.
 
-    def process_transaction(self, coin, amount):
-        self.validate_input(coin)
-        if amount <= 0:
-            raise ValueError('Amount must be greater than zero')
-        # Placeholder for actual transaction processing
-        return {'status': 'success', 'coin': coin, 'amount': amount}
+        Args:
+            data (Dict[str, Union[int, float]]): A dictionary containing cryptocurrency metrics.
+        """
+        self.data = data
 
-    def main_loop(self, transactions):
-        results = []
-        for transaction in transactions:
-            try:
-                coin = transaction['coin']
-                amount = transaction['amount']
-                result = self.process_transaction(coin, amount)
-                results.append(result)
-            except ValueError as e:
-                results.append({'status': 'error', 'message': str(e)})
-        return json.dumps(results)
+    def calculate_market_cap(self) -> float:
+        """Calculates the market capitalization.
 
-if __name__ == '__main__':
-    transactions = [
-        {'coin': 'BTC', 'amount': 0.1},
-        {'coin': 'ETH', 'amount': 0.5},
-        {'coin': 'DOGE', 'amount': 1},
-        {'coin': 'LTC', 'amount': -1},
-    ]
-    processor = CryptoProcessor()
-    output = processor.main_loop(transactions)
-    print(output)
+        Returns:
+            float: The calculated market cap.
+        """
+        return self.data.get('price', 0) * self.data.get('supply', 0)
+
+    def calculate_volatility(self) -> float:
+        """Calculates the volatility of the cryptocurrency.
+
+        Returns:
+            float: The calculated volatility.
+        """
+        price_changes = self.data.get('price_changes', [])
+        avg_change = sum(price_changes) / len(price_changes) if price_changes else 0
+        return avg_change
+
+    def get_summary(self) -> Dict[str, Any]:
+        """Returns a summary of the cryptocurrency analysis.
+
+        Returns:
+            Dict[str, Any]: A dictionary summary containing key metrics.
+        """
+        return {
+            'market_cap': self.calculate_market_cap(),
+            'volatility': self.calculate_volatility()
+        }
