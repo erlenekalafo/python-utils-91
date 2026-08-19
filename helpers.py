@@ -1,42 +1,18 @@
-from typing import Any, Dict, Union
-import json
+import time
+import requests
+from requests.exceptions import RequestException
 
-
-def load_json(file_path: str) -> Dict[str, Any]:
-    """
-    Load JSON data from a file.
-
-    Args:
-        file_path (str): The path to the JSON file.
-
-    Returns:
-        Dict[str, Any]: The parsed JSON data.
-    """
-    with open(file_path, 'r') as file:
-        return json.load(file)
-
-
-def save_json(data: Dict[str, Any], file_path: str) -> None:
-    """
-    Save data as JSON to a file.
-
-    Args:
-        data (Dict[str, Any]): The data to save.
-        file_path (str): The path where to save the JSON file.
-    """
-    with open(file_path, 'w') as file:
-        json.dump(data, file, indent=4)
-
-
-def calculate_percentage(part: Union[int, float], whole: Union[int, float]) -> float:
-    """
-    Calculate the percentage of a part relative to a whole.
-
-    Args:
-        part (Union[int, float]): The part to consider.
-        whole (Union[int, float]): The whole to base the percentage on.
-
-    Returns:
-        float: The calculated percentage.
-    """
-    return (part / whole) * 100 if whole else 0.0
+def retry_request(url, max_retries=5, backoff_factor=0.3):
+    """Performs a GET request with retry logic on failure."""
+    retries = 0
+    while retries < max_retries:
+        try:
+            response = requests.get(url)
+            response.raise_for_status()  # Raise an error for bad responses
+            return response.json()  # Return JSON response if successful
+        except RequestException as e:
+            retries += 1
+            wait_time = backoff_factor * (2 ** (retries - 1))
+            print(f"Attempt {retries} failed: {e}. Retrying in {wait_time:.1f} seconds...")
+            time.sleep(wait_time)
+    raise Exception(f"Max retries exceeded for URL: {url}")
