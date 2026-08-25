@@ -1,46 +1,37 @@
-# python-utils-91 
+# python-utils-91
 
-A collection of powerful and simple utilities designed to streamline cryptocurrency data management and analysis using Python. This library offers developers quick access to market data, price conversions, and wallet balances, making it an essential tool for anyone working in the crypto space.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+A collection of Python utilities for cryptocurrency development and data handling. It offers lightweight, dependency-minimal tools for fetching market data, validating addresses, and performing common blockchain calculations.
 
 ## Features
-
-- **Market Data Access**: Fetch real-time price data and historical market trends from popular cryptocurrency exchanges.
-- **Currency Conversion**: Easily convert between different cryptocurrencies and fiat currencies with live rates.
-- **Wallet Balance Tracking**: Monitor your crypto wallet balances across multiple blockchain networks with straightforward API calls.
-- **Data Visualization Tools**: Generate insightful visualizations of market trends and portfolio performance using Matplotlib and Seaborn integration.
+- Retrieve real-time and historical prices for over 100 cryptocurrencies through CoinGecko and Binance
+- Validate wallet addresses for Bitcoin, Ethereum, Solana, and several other networks
+- Estimate transaction fees and gas costs on Ethereum and EVM-compatible chains
+- Convert between base units (satoshis, wei, lamports) and standard denominations
 
 ## Installation
-
-To install the `python-utils-91` package, you can use pip by running the following command:
 
 ```bash
 pip install python-utils-91
 ```
 
-## Basic Usage Example
+From source:
 
-Here’s a simple example to get you started with fetching the latest Bitcoin price and converting it to Ethereum.
-
-```python
-from crypto_utils import CryptoUtils
-
-# Initialize the utility class
-utils = CryptoUtils()
-
-# Get the latest Bitcoin price in USD
-btc_price = utils.get_market_price('BTC', 'USD')
-print(f"Current Bitcoin Price: ${btc_price}")
-
-# Convert 1 Bitcoin to Ethereum
-eth_value = utils.convert_currency('BTC', 'ETH', 1)
-print(f"1 Bitcoin is worth {eth_value} Ethereum.")
+```bash
+git clone https://github.com/Developer/python-utils-91.git
+cd python-utils-91
+pip install -e .
 ```
 
-With just a few lines of code, you can access critical cryptocurrency data and perform conversions seamlessly.
+## Usage
 
-## License
+```python
+from python_utils_91 import prices, addresses
 
-![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)  
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+# Fetch current price
+btc_price = prices.get_price("bitcoin", "usd")
 
-Feel free to contribute and enhance the utility of this library in the ever-evolving crypto ecosystem!
+# Validate an address
+is_valid = addresses.is_valid("bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh", "bitcoin")
+```
