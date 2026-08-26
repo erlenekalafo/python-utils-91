@@ -1,44 +1,40 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+from typing import Dict, Any, Optional
 
-def setup_rotating_logger(
-    name: str = "python_utils_91",
-    log_file: str = "crypto_utils.log",
-    max_bytes: int = 10485760,  # 10 MB
-    backup_count: int = 5,
-    level: int = logging.INFO
-) -> logging.Logger:
-    """Set up a logger with rotating file handler and console output."""
-    logger = logging.getLogger(name)
-    # Prevent adding handlers multiple times
-    if not logger.handlers:
-        logger.setLevel(level)
-        # Ensure directory for log file
-        log_dir = os.path.dirname(log_file)
-        if log_dir and not os.path.exists(log_dir):
-            os.makedirs(log_dir)
-        # Rotating file handler
-        file_handler = RotatingFileHandler(
-            log_file, maxBytes=max_bytes, backupCount=backup_count
-        )
-        file_handler.setLevel(level)
-        # Console handler
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(level)
-        # Formatter with timestamp, level, name and message
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
-        file_handler.setFormatter(formatter)
-        console_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-        logger.addHandler(console_handler)
-    return logger
+logger = logging.getLogger("crypto-handler")
 
-# Usage example to demonstrate it works
-if __name__ == "__main__":
-    logger = setup_rotating_logger()
-    logger.info("Logger setup complete with rotation enabled")
-    logger.debug("This debug message may not appear based on level")
-    logger.warning("Sample warning for testing rotation")
+class CryptoTransactionHandler:
+    """Handles incoming crypto payload normalization and validation."""
+
+    def __init__(self, fee_rate: float = 0.001) -> None:
+        self.fee_rate = fee_rate
+        logger.info("Initialized CryptoTransactionHandler with fee rate %.4f", fee_rate)
+
+    def calculate_net_amount(self, amount: float) -> float:
+        """Deduct the configured fee from the raw transaction amount."""
+        if amount <= 0:
+            raise ValueError("Transaction amount must be strictly positive")
+        fee = amount * self.fee_rate
+        net_amount = amount - fee
+        logger.debug("Calculated net amount: %.8f (fee: %.8f)", net_amount, fee)
+        return net_amount
+
+    def process_payload(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Clean and organize transaction payload data."""
+        tx_id = payload.get("tx_id")
+        raw_amount = payload.get("amount")
+
+        if not tx_id or raw_amount is None:
+            logger.warning("Invalid payload structure received: %s", payload)
+            return None
+
+        try:
+            net = self.calculate_net_amount(float(raw_amount))
+            return {
+                "tx_id": str(tx_id),
+                "net_amount": net,
+                "status": "processed"
+            }
+        except (ValueError, TypeError) as exc:
+            logger.error("Failed to process transaction %s: %s", tx_id, exc)
+            return None
