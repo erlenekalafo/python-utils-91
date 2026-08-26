@@ -1,43 +1,24 @@
-class CryptoError(Exception):
-    """Base class for exceptions in this module."""
+class CryptoUtilsError(Exception):
+    """Base exception for all python-utils-91 crypto errors."""
     pass
 
 
-class InvalidAddressError(CryptoError):
-    """Raised when an address is invalid."""
-    def __init__(self, address):
-        self.address = address
-        super().__init__(f'Invalid blockchain address: {address}')
+class InvalidKeyLengthError(CryptoUtilsError):
+    """Raised when a cryptographic key does not match expected byte length."""
+    def __init__(self, expected: int, actual: int, message: str = None):
+        self.expected = expected
+        self.actual = actual
+        super().__init__(message or f"Invalid key length: expected {expected} bytes, got {actual} bytes")
 
 
-class InsufficientFundsError(CryptoError):
-    """Raised when a wallet has insufficient funds."""
-    def __init__(self, available, required):
-        self.available = available
-        self.required = required
-        super().__init__(f'Insufficient funds: available={available}, required={required}')
+class DecryptionError(CryptoUtilsError):
+    """Raised when ciphertext decryption fails due to corruption or tampering."""
+    def __init__(self, message: str = "Decryption failed: integrity check or padding error"):
+        super().__init__(message)
 
 
-class TransactionError(CryptoError):
-    """Raised when a transaction fails."""
-    def __init__(self, transaction_id, message):
-        self.transaction_id = transaction_id
-        self.message = message
-        super().__init__(f'Transaction {transaction_id} failed: {message}')
-
-
-if __name__ == '__main__':
-    try:
-        raise InvalidAddressError('123xyz')
-    except CryptoError as e:
-        print(e)
-    
-    try:
-        raise InsufficientFundsError(0.5, 1.0)
-    except CryptoError as e:
-        print(e)
-    
-    try:
-        raise TransactionError('tx123abc', 'Network timeout')
-    except CryptoError as e:
-        print(e)
+class UnsupportedAlgorithmError(CryptoUtilsError):
+    """Raised when an unsupported cipher or hash algorithm is requested."""
+    def __init__(self, algorithm: str):
+        self.algorithm = algorithm
+        super().__init__(f"Unsupported cryptographic algorithm: '{algorithm}'")
