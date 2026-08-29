@@ -1,33 +1,65 @@
-import json
-import requests
-from typing import List
+import hashlib
+import re
+from typing import List, Dict, Any
+
+def validate_crypto_address(address: str) -> bool:
+    """Validate basic cryptocurrency address format."""
+    if not address or not isinstance(address, str):
+        return False
+    # Basic validation for BTC and similar addresses
+    pattern = r'^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$'
+    if not re.match(pattern, address):
+        return False
+    return True
+
+def validate_amount(amount: float) -> bool:
+    """Ensure amount is positive number."""
+    if not isinstance(amount, (int, float)) or amount <= 0:
+        return False
+    return True
 
 class CryptoProcessor:
-    def __init__(self, api_url: str):
-        self.api_url = api_url
-        self.cache = {}
+    """Handles crypto transaction processing with validation."""
+    def __init__(self):
+        self.processed_count = 0
+        self.errors = []
 
-    def fetch_data(self, coin_ids: List[str]) -> dict:
-        # Use cached results if available
-        data_to_fetch = [coin for coin in coin_ids if coin not in self.cache]
-        if not data_to_fetch:
-            return self.get_cached_data(coin_ids)
+    def process_transaction(self, tx_data: Dict[str, Any]) -> bool:
+        """Validate and process individual transaction."""
+        if not isinstance(tx_data, dict):
+            self.errors.append("Invalid transaction data type")
+            return False
+        address = tx_data.get('address')
+        amount = tx_data.get('amount')
+        if not validate_crypto_address(address):
+            self.errors.append(f"Invalid address: {address}")
+            return False
+        if not validate_amount(amount):
+            self.errors.append(f"Invalid amount: {amount}")
+            return False
+        # Simulate crypto processing with hash
+        tx_hash = hashlib.sha256(str(tx_data).encode()).hexdigest()[:16]
+        self.processed_count += 1
+        print(f"Processed transaction {tx_hash} for amount {amount} to {address}")
+        return True
 
-        response = requests.get(self.api_url, params={'ids': ','.join(data_to_fetch)})
-        response.raise_for_status()
-        data = response.json()
+    def main_processing_loop(self, transactions: List[Dict[str, Any]]) -> None:
+        """Main loop processing transactions with input validation."""
+        for tx in transactions:
+            if self.process_transaction(tx):
+                print("Transaction completed successfully")
+            else:
+                print("Transaction skipped due to validation failure")
+        print(f"Total transactions processed: {self.processed_count}")
+        if self.errors:
+            print(f"Encountered errors: {len(self.errors)}")
 
-        # Cache the fetched data
-        for coin in data:
-            self.cache[coin['id']] = coin
-
-        return {coin_id: self.cache[coin_id] for coin_id in coin_ids}
-
-    def get_cached_data(self, coin_ids: List[str]) -> dict:
-        return {coin_id: self.cache[coin_id] for coin_id in coin_ids if coin_id in self.cache}
-
-# Example of usage:
-if __name__ == '__main__':
-    processor = CryptoProcessor('https://api.coingecko.com/api/v3/coins/markets')
-    data = processor.fetch_data(['bitcoin', 'ethereum'])
-    print(json.dumps(data, indent=2))
+if __name__ == "__main__":
+    processor = CryptoProcessor()
+    sample_transactions = [
+        {"address": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", "amount": 1.5},
+        {"address": "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy", "amount": 0.25},
+        {"address": "invalidaddress123", "amount": 10},
+        {"address": "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2", "amount": -5}
+    ]
+    processor.main_processing_loop(sample_transactions)
