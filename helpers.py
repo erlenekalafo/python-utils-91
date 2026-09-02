@@ -1,57 +1,63 @@
 import time
 import random
-from functools import wraps
+import functools
 
-import requests
+def retry_network(
+    max_retries: int = 3,
+    delay_seconds: float = 1,
+    backoff_multiplier: float = 2,
+    exceptions: tuple = (Exception,)
+):
+    """Retry decorator for network operations with exponential backoff and jitter.
 
-
-def retry_network_operation(max_retries=3, base_delay=1.0, max_delay=60.0):
-    """Decorator to add retry logic to network operations.
-
-    Uses exponential backoff with jitter for practical reliability.
+    Useful for crypto API calls that may face rate limits or temporary failures.
     """
     def decorator(func):
-        @wraps(func)
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            last_exception = None
+            last_exc = None
+            current_delay = delay_seconds
             for attempt in range(max_retries):
                 try:
                     return func(*args, **kwargs)
-                except (requests.exceptions.RequestException, OSError, ConnectionError) as exc:
-                    last_exception = exc
+                except exceptions as exc:
+                    last_exc = exc
                     if attempt == max_retries - 1:
                         break
-                    # Exponential backoff with jitter
-                    delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), max_delay)
-                    time.sleep(delay)
-            if last_exception:
-                raise last_exception
-            raise RuntimeError("Unexpected retry failure")
+                    # Exponential backoff with jitter to avoid thundering herd
+                    sleep_time = current_delay + random.uniform(0, 0.5)
+                    time.sleep(sleep_time)
+                    current_delay *= backoff_multiplier
+            if last_exc:
+                raise last_exc
+            # Should not reach here
+            raise RuntimeError("Retry logic failed unexpectedly")
         return wrapper
     return decorator
 
+# Example of a network operation for crypto context
+def get_crypto_price(coin_id: str) -> float:
+    """Simulated network call to get crypto price.
 
-# Example function using the retry logic for a crypto-related network call
-@retry_network_operation(max_retries=5, base_delay=2.0)
-def get_crypto_data(coin_id):
-    """Fetch data from a crypto API with automatic retries."""
-    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}"
-    response = requests.get(url, timeout=10)
-    response.raise_for_status()
-    return response.json()
+    In production, replace with actual API call.
+    """
+    # Simulate occasional network issues
+    if random.random() < 0.3:  # 30% chance of failure for demo
+        raise ConnectionError(f"Failed to fetch price for {coin_id}")
+    # Simulated price data
+    prices = {"bitcoin": 65000.0, "ethereum": 2500.0}
+    return prices.get(coin_id, 100.0)
 
+# Apply retry logic
+@retry_network(max_retries=4, delay_seconds=0.5, backoff_multiplier=1.5)
+def fetch_with_retry(coin_id: str) -> float:
+    """Wrapper using retry for reliable crypto data retrieval."""
+    return get_crypto_price(coin_id)
 
-# Another utility for general network retries
-def execute_with_retry(operation, *args, max_retries=3, **kwargs):
-    """Execute a callable with retry logic."""
-    last_exc = None
-    for attempt in range(max_retries):
-        try:
-            return operation(*args, **kwargs)
-        except Exception as exc:
-            last_exc = exc
-            if attempt == max_retries - 1:
-                break
-            delay = 2 ** attempt
-            time.sleep(delay)
-    raise last_exc
+# Test the function if run directly
+if __name__ == "__main__":
+    try:
+        price = fetch_with_retry("bitcoin")
+        print(f"Successfully fetched price: {price}")
+    except Exception as e:
+        print(f"Failed after retries: {e}")
