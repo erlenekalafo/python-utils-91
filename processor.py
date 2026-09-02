@@ -1,65 +1,87 @@
 import hashlib
-import re
-from typing import List, Dict, Any
-
-def validate_crypto_address(address: str) -> bool:
-    """Validate basic cryptocurrency address format."""
-    if not address or not isinstance(address, str):
-        return False
-    # Basic validation for BTC and similar addresses
-    pattern = r'^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$'
-    if not re.match(pattern, address):
-        return False
-    return True
-
-def validate_amount(amount: float) -> bool:
-    """Ensure amount is positive number."""
-    if not isinstance(amount, (int, float)) or amount <= 0:
-        return False
-    return True
-
+from typing import Any, Dict, List
 class CryptoProcessor:
-    """Handles crypto transaction processing with validation."""
-    def __init__(self):
-        self.processed_count = 0
-        self.errors = []
+    """A utility class for processing cryptographic data and simple blockchain operations."""
+    def __init__(self, secret: str) -> None:
+        """Initialize with a secret key for hashing.
 
-    def process_transaction(self, tx_data: Dict[str, Any]) -> bool:
-        """Validate and process individual transaction."""
-        if not isinstance(tx_data, dict):
-            self.errors.append("Invalid transaction data type")
+        Args:
+            secret: Secret string used as key in all hashes.
+        """
+        self.secret = secret.encode('utf-8')
+    def _hash(self, data: bytes) -> str:
+        """Compute SHA256 hash prefixed with secret.
+
+        Args:
+            data: Input bytes to be hashed.
+        Returns:
+            Hexadecimal string of the hash.
+        """
+        # Combine secret and data for keyed hash
+        hasher = hashlib.sha256(self.secret + data)
+        return hasher.hexdigest()
+    def hash_data(self, data: str) -> str:
+        """Hash string data.
+
+        Args:
+            data: String to hash.
+        Returns:
+            Hash as hex string.
+        """
+        return self._hash(data.encode('utf-8'))
+    def process_transaction(self, tx: Dict[str, Any]) -> Dict[str, Any]:
+        """Process a transaction by adding its hash.
+
+        Args:
+            tx: Transaction dictionary with fields like 'from', 'to', 'amount'.
+        Returns:
+            The transaction with added 'tx_hash' field.
+        """
+        # Serialize for consistent hashing
+        items = sorted(tx.items())
+        serialized = str(items).encode('utf-8')
+        tx_hash = self._hash(serialized)
+        result = tx.copy()
+        result['tx_hash'] = tx_hash
+        return result
+    def create_block(self, data: Dict[str, Any], prev_hash: str = "") -> Dict[str, Any]:
+        """Create a new block with data and previous hash.
+
+        Args:
+            data: The block data dictionary.
+            prev_hash: Hash of the previous block, empty for genesis.
+        Returns:
+            Block dictionary with 'data', 'prev_hash', 'hash'.
+        """
+        serialized_data = str(sorted(data.items())).encode('utf-8')
+        # Hash includes prev_hash for chain linking
+        to_hash = serialized_data + prev_hash.encode('utf-8')
+        block_hash = self._hash(to_hash)
+        return {'data': data, 'prev_hash': prev_hash, 'hash': block_hash}
+    def validate_chain(self, chain: List[Dict[str, Any]]) -> bool:
+        """Validate the blockchain integrity.
+
+        Checks each block's hash and previous hash links.
+
+        Args:
+            chain: List of block dictionaries.
+        Returns:
+            True if valid, else False.
+        """
+        if len(chain) == 0:
+            return True
+        if chain[0]['prev_hash'] != "":
             return False
-        address = tx_data.get('address')
-        amount = tx_data.get('amount')
-        if not validate_crypto_address(address):
-            self.errors.append(f"Invalid address: {address}")
-            return False
-        if not validate_amount(amount):
-            self.errors.append(f"Invalid amount: {amount}")
-            return False
-        # Simulate crypto processing with hash
-        tx_hash = hashlib.sha256(str(tx_data).encode()).hexdigest()[:16]
-        self.processed_count += 1
-        print(f"Processed transaction {tx_hash} for amount {amount} to {address}")
+        for i in range(len(chain)):
+            block = chain[i]
+            data = block['data']
+            prev = block['prev_hash']
+            expected_hash = block['hash']
+            serialized_data = str(sorted(data.items())).encode('utf-8')
+            to_hash = serialized_data + prev.encode('utf-8')
+            computed = self._hash(to_hash)
+            if computed != expected_hash:
+                return False
+            if i > 0 and prev != chain[i-1]['hash']:
+                return False
         return True
-
-    def main_processing_loop(self, transactions: List[Dict[str, Any]]) -> None:
-        """Main loop processing transactions with input validation."""
-        for tx in transactions:
-            if self.process_transaction(tx):
-                print("Transaction completed successfully")
-            else:
-                print("Transaction skipped due to validation failure")
-        print(f"Total transactions processed: {self.processed_count}")
-        if self.errors:
-            print(f"Encountered errors: {len(self.errors)}")
-
-if __name__ == "__main__":
-    processor = CryptoProcessor()
-    sample_transactions = [
-        {"address": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", "amount": 1.5},
-        {"address": "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy", "amount": 0.25},
-        {"address": "invalidaddress123", "amount": 10},
-        {"address": "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2", "amount": -5}
-    ]
-    processor.main_processing_loop(sample_transactions)
