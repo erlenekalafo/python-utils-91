@@ -1,18 +1,57 @@
 import time
-import requests
-from requests.exceptions import RequestException
+import random
+from functools import wraps
 
-def retry_request(url, max_retries=5, backoff_factor=0.3):
-    """Performs a GET request with retry logic on failure."""
-    retries = 0
-    while retries < max_retries:
+import requests
+
+
+def retry_network_operation(max_retries=3, base_delay=1.0, max_delay=60.0):
+    """Decorator to add retry logic to network operations.
+
+    Uses exponential backoff with jitter for practical reliability.
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except (requests.exceptions.RequestException, OSError, ConnectionError) as exc:
+                    last_exception = exc
+                    if attempt == max_retries - 1:
+                        break
+                    # Exponential backoff with jitter
+                    delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), max_delay)
+                    time.sleep(delay)
+            if last_exception:
+                raise last_exception
+            raise RuntimeError("Unexpected retry failure")
+        return wrapper
+    return decorator
+
+
+# Example function using the retry logic for a crypto-related network call
+@retry_network_operation(max_retries=5, base_delay=2.0)
+def get_crypto_data(coin_id):
+    """Fetch data from a crypto API with automatic retries."""
+    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}"
+    response = requests.get(url, timeout=10)
+    response.raise_for_status()
+    return response.json()
+
+
+# Another utility for general network retries
+def execute_with_retry(operation, *args, max_retries=3, **kwargs):
+    """Execute a callable with retry logic."""
+    last_exc = None
+    for attempt in range(max_retries):
         try:
-            response = requests.get(url)
-            response.raise_for_status()  # Raise an error for bad responses
-            return response.json()  # Return JSON response if successful
-        except RequestException as e:
-            retries += 1
-            wait_time = backoff_factor * (2 ** (retries - 1))
-            print(f"Attempt {retries} failed: {e}. Retrying in {wait_time:.1f} seconds...")
-            time.sleep(wait_time)
-    raise Exception(f"Max retries exceeded for URL: {url}")
+            return operation(*args, **kwargs)
+        except Exception as exc:
+            last_exc = exc
+            if attempt == max_retries - 1:
+                break
+            delay = 2 ** attempt
+            time.sleep(delay)
+    raise last_exc
