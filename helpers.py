@@ -1,32 +1,42 @@
-import base64
 import hashlib
-import hmac
-from typing import Dict, Any
+from typing import Union
+
+SATOSHIS_PER_BTC = 100_000_000
 
 
-def generate_hmac_signature(secret: str, message: str, algorithm: str = 'sha256') -> str:
-    """Generate hex-encoded HMAC signature for API request authentication."""
-    key_bytes = secret.encode('utf-8')
-    msg_bytes = message.encode('utf-8')
-    hash_func = getattr(hashlib, algorithm.lower())
-    signature = hmac.new(key_bytes, msg_bytes, hash_func)
-    return signature.hexdigest()
+def satoshi_to_btc(satoshis: int) -> float:
+    """Convert satoshis to decimal BTC amount."""
+    if satoshis < 0:
+        raise ValueError("Satoshi amount cannot be negative")
+    return satoshis / SATOSHIS_PER_BTC
 
 
-def prepare_query_string(params: Dict[str, Any]) -> str:
-    """Sort dictionary keys and construct a deterministic query string."""
-    sorted_params = sorted(params.items(), key=lambda item: item[0])
-    return "&".join(f"{k}={v}" for k, v in sorted_params)
+def btc_to_satoshi(btc: Union[float, int]) -> int:
+    """Convert decimal BTC amount to satoshis."""
+    if btc < 0:
+        raise ValueError("BTC amount cannot be negative")
+    return int(round(btc * SATOSHIS_PER_BTC))
 
 
-def hash_payload(data: bytes, algorithm: str = 'sha256') -> str:
-    """Compute the hexadecimal digest of raw bytes using specified algorithm."""
-    hasher = getattr(hashlib, algorithm.lower())()
-    hasher.update(data)
-    return hasher.hexdigest()
+def truncate_address(address: str, prefix_len: int = 6, suffix_len: int = 4) -> str:
+    """Truncate crypto wallet address for safe display."""
+    if len(address) <= prefix_len + suffix_len:
+        return address
+    return f"{address[:prefix_len]}...{address[-suffix_len:]}"
 
 
-def base64_url_encode(data: bytes) -> str:
-    """Encode bytes to URL-safe base64 string without padding."""
-    encoded = base64.urlsafe_b64encode(data).decode('utf-8')
-    return encoded.rstrip('=')
+def double_sha256(data: bytes) -> bytes:
+    """Calculate double SHA-256 hash used in Bitcoin protocol."""
+    return hashlib.sha256(hashlib.sha256(data).digest()).digest()
+
+
+def is_valid_hex_string(hex_str: str) -> bool:
+    """Check if string is a valid even-length hex string."""
+    cleaned = hex_str[2:] if hex_str.startswith(("0x", "0X")) else hex_str
+    if not cleaned or len(cleaned) % 2 != 0:
+        return False
+    try:
+        int(cleaned, 16)
+        return True
+    except ValueError:
+        return False
