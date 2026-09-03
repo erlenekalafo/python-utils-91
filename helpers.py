@@ -1,63 +1,32 @@
-import time
-import random
-import functools
+import base64
+import hashlib
+import hmac
+from typing import Dict, Any
 
-def retry_network(
-    max_retries: int = 3,
-    delay_seconds: float = 1,
-    backoff_multiplier: float = 2,
-    exceptions: tuple = (Exception,)
-):
-    """Retry decorator for network operations with exponential backoff and jitter.
 
-    Useful for crypto API calls that may face rate limits or temporary failures.
-    """
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            last_exc = None
-            current_delay = delay_seconds
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as exc:
-                    last_exc = exc
-                    if attempt == max_retries - 1:
-                        break
-                    # Exponential backoff with jitter to avoid thundering herd
-                    sleep_time = current_delay + random.uniform(0, 0.5)
-                    time.sleep(sleep_time)
-                    current_delay *= backoff_multiplier
-            if last_exc:
-                raise last_exc
-            # Should not reach here
-            raise RuntimeError("Retry logic failed unexpectedly")
-        return wrapper
-    return decorator
+def generate_hmac_signature(secret: str, message: str, algorithm: str = 'sha256') -> str:
+    """Generate hex-encoded HMAC signature for API request authentication."""
+    key_bytes = secret.encode('utf-8')
+    msg_bytes = message.encode('utf-8')
+    hash_func = getattr(hashlib, algorithm.lower())
+    signature = hmac.new(key_bytes, msg_bytes, hash_func)
+    return signature.hexdigest()
 
-# Example of a network operation for crypto context
-def get_crypto_price(coin_id: str) -> float:
-    """Simulated network call to get crypto price.
 
-    In production, replace with actual API call.
-    """
-    # Simulate occasional network issues
-    if random.random() < 0.3:  # 30% chance of failure for demo
-        raise ConnectionError(f"Failed to fetch price for {coin_id}")
-    # Simulated price data
-    prices = {"bitcoin": 65000.0, "ethereum": 2500.0}
-    return prices.get(coin_id, 100.0)
+def prepare_query_string(params: Dict[str, Any]) -> str:
+    """Sort dictionary keys and construct a deterministic query string."""
+    sorted_params = sorted(params.items(), key=lambda item: item[0])
+    return "&".join(f"{k}={v}" for k, v in sorted_params)
 
-# Apply retry logic
-@retry_network(max_retries=4, delay_seconds=0.5, backoff_multiplier=1.5)
-def fetch_with_retry(coin_id: str) -> float:
-    """Wrapper using retry for reliable crypto data retrieval."""
-    return get_crypto_price(coin_id)
 
-# Test the function if run directly
-if __name__ == "__main__":
-    try:
-        price = fetch_with_retry("bitcoin")
-        print(f"Successfully fetched price: {price}")
-    except Exception as e:
-        print(f"Failed after retries: {e}")
+def hash_payload(data: bytes, algorithm: str = 'sha256') -> str:
+    """Compute the hexadecimal digest of raw bytes using specified algorithm."""
+    hasher = getattr(hashlib, algorithm.lower())()
+    hasher.update(data)
+    return hasher.hexdigest()
+
+
+def base64_url_encode(data: bytes) -> str:
+    """Encode bytes to URL-safe base64 string without padding."""
+    encoded = base64.urlsafe_b64encode(data).decode('utf-8')
+    return encoded.rstrip('=')
