@@ -1,35 +1,37 @@
 import json
 import os
+from typing import Any, Dict
 
 class ConfigLoader:
-    def __init__(self, default_config_path=None):
-        self.default_config_path = default_config_path or "default_config.json"
-        self.config = self.load_config()
+    """Handles loading configuration with fallback defaults."""
+    
+    DEFAULT_CONFIG = {
+        "network": "mainnet",
+        "timeout": 30,
+        "retry_attempts": 3,
+        "log_level": "INFO"
+    }
 
-    def load_config(self):
-        config = self.load_defaults()
-        env_config = self.load_env_vars()
-        config.update(env_config)
-        return config
+    def __init__(self, config_path: str = "config.json"):
+        self.config_path = config_path
+        self.config = self._load_config()
 
-    def load_defaults(self):
-        if not os.path.exists(self.default_config_path):
-            return {}
-        with open(self.default_config_path, 'r') as file:
-            return json.load(file)
+    def _load_config(self) -> Dict[str, Any]:
+        """Reads JSON file and merges with internal defaults."""
+        if not os.path.exists(self.config_path):
+            return self.DEFAULT_CONFIG
+        
+        try:
+            with open(self.config_path, "r") as f:
+                user_config = json.load(f)
+                return {**self.DEFAULT_CONFIG, **user_config}
+        except (json.JSONDecodeError, IOError):
+            return self.DEFAULT_CONFIG
 
-    def load_env_vars(self):
-        env_config = {}
-        for key, value in os.environ.items():
-            if key.startswith('APP_'):
-                config_key = key[4:].lower()
-                env_config[config_key] = value
-        return env_config
-
-    def get(self, key, default=None):
+    def get(self, key: str, default: Any = None) -> Any:
+        """Access configuration values safely."""
         return self.config.get(key, default)
 
-# Example usage
-if __name__ == '__main__':
-    config_loader = ConfigLoader()
-    print(config_loader.get('some_setting', 'default_value'))
+    def get_int(self, key: str) -> int:
+        """Force integer return type for numeric settings."""
+        return int(self.config.get(key, 0))
