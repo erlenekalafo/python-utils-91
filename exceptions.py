@@ -1,24 +1,34 @@
-class CryptoUtilsError(Exception):
-    """Base exception for all python-utils-91 crypto errors."""
+class CryptoUtilError(Exception):
+    """Base exception for all python-utils-91 errors."""
     pass
 
 
-class InvalidKeyLengthError(CryptoUtilsError):
-    """Raised when a cryptographic key does not match expected byte length."""
-    def __init__(self, expected: int, actual: int, message: str = None):
-        self.expected = expected
-        self.actual = actual
-        super().__init__(message or f"Invalid key length: expected {expected} bytes, got {actual} bytes")
+class InvalidInputError(CryptoUtilError):
+    """Raised when input validation fails in processing."""
+    def __init__(self, field: str, message: str):
+        self.field = field
+        self.message = message
+        super().__init__(f"Invalid '{field}': {message}")
 
 
-class DecryptionError(CryptoUtilsError):
-    """Raised when ciphertext decryption fails due to corruption or tampering."""
-    def __init__(self, message: str = "Decryption failed: integrity check or padding error"):
-        super().__init__(message)
+class ValidationError(CryptoUtilError):
+    """Raised when data validation against crypto rules fails."""
+    def __init__(self, reason: str):
+        self.reason = reason
+        super().__init__(f"Validation failed: {reason}")
 
 
-class UnsupportedAlgorithmError(CryptoUtilsError):
-    """Raised when an unsupported cipher or hash algorithm is requested."""
-    def __init__(self, algorithm: str):
-        self.algorithm = algorithm
-        super().__init__(f"Unsupported cryptographic algorithm: '{algorithm}'")
+def validate_payload(data: dict) -> None:
+    """Validate incoming payload dictionary before processing."""
+    if not isinstance(data, dict):
+        raise InvalidInputError("payload", "Expected dictionary object")
+    
+    required_keys = ["address", "amount", "signature"]
+    for key in required_keys:
+        if key not in data:
+            raise InvalidInputError(key, "Missing required key in payload")
+        if data[key] is None:
+            raise InvalidInputError(key, "Value cannot be None")
+
+    if not isinstance(data["amount"], (int, float)) or data["amount"] <= 0:
+        raise ValidationError("Amount must be a positive number")
