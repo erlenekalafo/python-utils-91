@@ -1,41 +1,40 @@
-from typing import Dict, Any, Union
+import hashlib
+import hmac
+from decimal import Decimal
+from typing import Union
 
-class CryptoAnalyzer:
-    """Class for analyzing cryptocurrency data."""
 
-    def __init__(self, data: Dict[str, Union[int, float]]) -> None:
-        """Initializes the CryptoAnalyzer with data.
+def sha256_hash(data: Union[str, bytes]) -> str:
+    """Calculate SHA-256 digest of string or bytes input."""
+    if isinstance(data, str):
+        data = data.encode('utf-8')
+    return hashlib.sha256(data).hexdigest()
 
-        Args:
-            data (Dict[str, Union[int, float]]): A dictionary containing cryptocurrency metrics.
-        """
-        self.data = data
 
-    def calculate_market_cap(self) -> float:
-        """Calculates the market capitalization.
+def hmac_sha256(key: Union[str, bytes], msg: Union[str, bytes]) -> str:
+    """Generate HMAC-SHA256 signature for message authentication."""
+    if isinstance(key, str):
+        key = key.encode('utf-8')
+    if isinstance(msg, str):
+        msg = msg.encode('utf-8')
+    return hmac.new(key, msg, hashlib.sha256).hexdigest()
 
-        Returns:
-            float: The calculated market cap.
-        """
-        return self.data.get('price', 0) * self.data.get('supply', 0)
 
-    def calculate_volatility(self) -> float:
-        """Calculates the volatility of the cryptocurrency.
+def satoshi_to_btc(satoshis: int) -> Decimal:
+    """Convert Satoshi units to Bitcoin decimal representation."""
+    return Decimal(satoshis) / Decimal(100_000_000)
 
-        Returns:
-            float: The calculated volatility.
-        """
-        price_changes = self.data.get('price_changes', [])
-        avg_change = sum(price_changes) / len(price_changes) if price_changes else 0
-        return avg_change
 
-    def get_summary(self) -> Dict[str, Any]:
-        """Returns a summary of the cryptocurrency analysis.
+def btc_to_satoshi(btc: Union[float, str, Decimal]) -> int:
+    """Convert Bitcoin amount to integer Satoshis."""
+    return int(Decimal(str(btc)) * Decimal(100_000_000))
 
-        Returns:
-            Dict[str, Any]: A dictionary summary containing key metrics.
-        """
-        return {
-            'market_cap': self.calculate_market_cap(),
-            'volatility': self.calculate_volatility()
-        }
+
+def wei_to_ether(wei: int) -> Decimal:
+    """Convert Ethereum Wei to Ether decimal standard."""
+    return Decimal(wei) / Decimal(10 ** 18)
+
+
+def ether_to_wei(ether: Union[float, str, Decimal]) -> int:
+    """Convert Ether amount to integer Wei."""
+    return int(Decimal(str(ether)) * Decimal(10 ** 18))
