@@ -1,26 +1,35 @@
-import time
-from functools import wraps
+import logging
 
-def retry(max_attempts=3, initial_delay=1.0, backoff_factor=2.0, exceptions=(Exception,)):
-    """Decorator for retry logic on network operations.
-    This is practical for crypto module to handle API rate limits and transient errors.
-    """
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            attempt = 0
-            delay = initial_delay
-            while attempt < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    attempt += 1
-                    if attempt == max_attempts:
-                        # All attempts failed, propagate the error
-                        raise
-                    time.sleep(delay)
-                    delay *= backoff_factor
-            # This line should not be reached
-            raise RuntimeError("Unexpected end of retry logic")
-        return wrapper
-    return decorator
+def validate_crypto_payload(data: dict) -> bool:
+    """Validate transaction structure for crypto processing."""
+    required_fields = {'asset', 'amount', 'wallet_address'}
+    if not all(field in data for field in required_fields):
+        return False
+    if not isinstance(data['amount'], (int, float)) or data['amount'] <= 0:
+        return False
+    if len(str(data['wallet_address'])) < 26:
+        return False
+    return True
+
+def process_transactions(queue: list):
+    """Main processing loop with validation."""
+    logging.basicConfig(level=logging.INFO)
+    for entry in queue:
+        try:
+            if not validate_crypto_payload(entry):
+                logging.warning(f"Skipping invalid payload: {entry}")
+                continue
+            
+            # Simulate secure processing of valid data
+            asset = entry['asset']
+            amount = entry['amount']
+            logging.info(f"Processing {amount} units of {asset}")
+        except Exception as e:
+            logging.error(f"Critical processing failure: {e}")
+
+if __name__ == "__main__":
+    sample_data = [
+        {"asset": "BTC", "amount": 0.5, "wallet_address": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"},
+        {"asset": "ETH", "amount": -1, "wallet_address": "invalid"}
+    ]
+    process_transactions(sample_data)
