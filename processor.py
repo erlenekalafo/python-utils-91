@@ -1,33 +1,40 @@
-import time
-import functools
-import logging
-from typing import Callable, Any, Type
+import hashlib
+import hmac
+import json
+from typing import Dict, Any
 
-logger = logging.getLogger(__name__)
+class CryptoDataProcessor:
+    """Handles cryptographic signature verification and payload normalization."""
 
-def retry_network_op(exceptions: tuple[Type[Exception], ...], 
-                     max_retries: int = 3, 
-                     delay: float = 1.0) -> Callable:
-    """Decorator to retry network-bound crypto operations."""
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_exception = None
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    last_exception = e
-                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying...")
-                    if attempt < max_retries - 1:
-                        time.sleep(delay * (2 ** attempt))
-            logger.error(f"Max retries reached. Final error: {last_exception}")
-            raise last_exception
-        return wrapper
-    return decorator
+    def __init__(self, secret: str):
+        self.secret = secret.encode('utf-8')
 
-@retry_network_op((ConnectionError, TimeoutError))
-def fetch_market_data(endpoint: str) -> dict:
-    """Mock crypto exchange API fetch operation."""
-    # Actual network logic would reside here
-    return {"status": "success", "data": 0.0}
+    def generate_signature(self, payload: Dict[str, Any]) -> str:
+        """Creates HMAC-SHA256 signature for data integrity."""
+        message = json.dumps(payload, sort_keys=True).encode('utf-8')
+        return hmac.new(
+            self.secret, 
+            message, 
+            hashlib.sha256
+        ).hexdigest()
+
+    def verify_payload(self, payload: Dict[str, Any], signature: str) -> bool:
+        """Validates signature against provided payload data."""
+        expected = self.generate_signature(payload)
+        return hmac.compare_digest(expected, signature)
+
+    @staticmethod
+    def sanitize_price_data(raw_value: Any) -> float:
+        """Normalizes crypto price input to float format."""
+        try:
+            return float(raw_value)
+        except (ValueError, TypeError):
+            return 0.0
+
+def process_trade_event(processor: CryptoDataProcessor, event: Dict[str, Any], sig: str) -> Dict[str, Any]:
+    """Entry point for incoming trade stream processing."""
+    if not processor.verify_payload(event, sig):
+        raise ValueError("Invalid signature provided for trade event")
+        
+    event['price'] = processor.sanitize_price_data(event.get('price'))
+    return event
