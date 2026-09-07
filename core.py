@@ -1,40 +1,41 @@
-import hashlib
-import hmac
-from decimal import Decimal
-from typing import Union
+import logging
+from typing import Optional, Dict, Any
 
+logger = logging.getLogger(__name__)
 
-def sha256_hash(data: Union[str, bytes]) -> str:
-    """Calculate SHA-256 digest of string or bytes input."""
-    if isinstance(data, str):
-        data = data.encode('utf-8')
-    return hashlib.sha256(data).hexdigest()
+class CryptoProcessor:
+    """Handles core cryptographic operations with input validation."""
 
+    def __init__(self, key: str):
+        if not key or len(key) < 32:
+            raise ValueError("Key must be at least 32 characters.")
+        self._key = key.encode()
 
-def hmac_sha256(key: Union[str, bytes], msg: Union[str, bytes]) -> str:
-    """Generate HMAC-SHA256 signature for message authentication."""
-    if isinstance(key, str):
-        key = key.encode('utf-8')
-    if isinstance(msg, str):
-        msg = msg.encode('utf-8')
-    return hmac.new(key, msg, hashlib.sha256).hexdigest()
+    def encrypt_data(self, data: Any) -> Optional[bytes]:
+        """Encrypts provided data with safe error handling."""
+        try:
+            if not isinstance(data, str):
+                raise TypeError("Input data must be a string")
+            
+            # Simulate processing logic
+            payload = data.encode('utf-8')
+            return bytes([b ^ self._key[i % len(self._key)] for i, b in enumerate(payload)])
+            
+        except TypeError as e:
+            logger.error(f"Type mismatch in encryption: {e}")
+        except Exception as e:
+            logger.critical(f"Unexpected crypto failure: {e}")
+            
+        return None
 
-
-def satoshi_to_btc(satoshis: int) -> Decimal:
-    """Convert Satoshi units to Bitcoin decimal representation."""
-    return Decimal(satoshis) / Decimal(100_000_000)
-
-
-def btc_to_satoshi(btc: Union[float, str, Decimal]) -> int:
-    """Convert Bitcoin amount to integer Satoshis."""
-    return int(Decimal(str(btc)) * Decimal(100_000_000))
-
-
-def wei_to_ether(wei: int) -> Decimal:
-    """Convert Ethereum Wei to Ether decimal standard."""
-    return Decimal(wei) / Decimal(10 ** 18)
-
-
-def ether_to_wei(ether: Union[float, str, Decimal]) -> int:
-    """Convert Ether amount to integer Wei."""
-    return int(Decimal(str(ether)) * Decimal(10 ** 18))
+    def decrypt_data(self, encrypted: Optional[bytes]) -> str:
+        """Decrypts data, returning empty string on failure."""
+        if encrypted is None:
+            return ""
+            
+        try:
+            decrypted = [b ^ self._key[i % len(self._key)] for i, b in enumerate(encrypted)]
+            return bytes(decrypted).decode('utf-8')
+        except (UnicodeDecodeError, IndexError) as e:
+            logger.warning(f"Decryption stream corrupted: {e}")
+            return ""
