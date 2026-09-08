@@ -1,41 +1,27 @@
-import logging
-from typing import Optional, Dict, Any
+import decimal
+from typing import Union, Dict
 
-logger = logging.getLogger(__name__)
+def normalize_crypto_amount(amount: Union[str, float, int], precision: int = 8) -> decimal.Decimal:
+    """Converts raw crypto inputs to a precise decimal for calculation."""
+    context = decimal.getcontext()
+    context.rounding = decimal.ROUND_DOWN
+    
+    try:
+        value = decimal.Decimal(str(amount))
+        return value.quantize(decimal.Decimal(10) ** -precision)
+    except (decimal.InvalidOperation, ValueError) as e:
+        raise ValueError(f"Invalid crypto amount format: {amount}") from e
 
-class CryptoProcessor:
-    """Handles core cryptographic operations with input validation."""
+def format_order_payload(symbol: str, side: str, amount: decimal.Decimal, price: decimal.Decimal) -> Dict:
+    """Constructs a standardized payload for exchange API requests."""
+    return {
+        "symbol": symbol.upper(),
+        "side": side.lower(),
+        "quantity": str(amount),
+        "price": str(price),
+        "timestamp": "auto"
+    }
 
-    def __init__(self, key: str):
-        if not key or len(key) < 32:
-            raise ValueError("Key must be at least 32 characters.")
-        self._key = key.encode()
-
-    def encrypt_data(self, data: Any) -> Optional[bytes]:
-        """Encrypts provided data with safe error handling."""
-        try:
-            if not isinstance(data, str):
-                raise TypeError("Input data must be a string")
-            
-            # Simulate processing logic
-            payload = data.encode('utf-8')
-            return bytes([b ^ self._key[i % len(self._key)] for i, b in enumerate(payload)])
-            
-        except TypeError as e:
-            logger.error(f"Type mismatch in encryption: {e}")
-        except Exception as e:
-            logger.critical(f"Unexpected crypto failure: {e}")
-            
-        return None
-
-    def decrypt_data(self, encrypted: Optional[bytes]) -> str:
-        """Decrypts data, returning empty string on failure."""
-        if encrypted is None:
-            return ""
-            
-        try:
-            decrypted = [b ^ self._key[i % len(self._key)] for i, b in enumerate(encrypted)]
-            return bytes(decrypted).decode('utf-8')
-        except (UnicodeDecodeError, IndexError) as e:
-            logger.warning(f"Decryption stream corrupted: {e}")
-            return ""
+def calculate_position_value(quantity: decimal.Decimal, price: decimal.Decimal) -> decimal.Decimal:
+    """Computes the total fiat value of a position."""
+    return (quantity * price).quantize(decimal.Decimal("0.01"))
