@@ -1,35 +1,29 @@
-import logging
+import hashlib
+import hmac
+import json
+from typing import Dict, Any, Optional
 
-def validate_crypto_payload(data: dict) -> bool:
-    """Validate transaction structure for crypto processing."""
-    required_fields = {'asset', 'amount', 'wallet_address'}
-    if not all(field in data for field in required_fields):
-        return False
-    if not isinstance(data['amount'], (int, float)) or data['amount'] <= 0:
-        return False
-    if len(str(data['wallet_address'])) < 26:
-        return False
-    return True
+def generate_signature(api_secret: str, payload: Dict[str, Any]) -> str:
+    """Generates a HMAC-SHA256 signature for API requests."""
+    serialized_payload = json.dumps(payload, sort_keys=True, separators=(',', ':'))
+    return hmac.new(
+        api_secret.encode('utf-8'),
+        serialized_payload.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
 
-def process_transactions(queue: list):
-    """Main processing loop with validation."""
-    logging.basicConfig(level=logging.INFO)
-    for entry in queue:
-        try:
-            if not validate_crypto_payload(entry):
-                logging.warning(f"Skipping invalid payload: {entry}")
-                continue
-            
-            # Simulate secure processing of valid data
-            asset = entry['asset']
-            amount = entry['amount']
-            logging.info(f"Processing {amount} units of {asset}")
-        except Exception as e:
-            logging.error(f"Critical processing failure: {e}")
+def sanitize_crypto_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Removes sensitive fields from crypto transaction logs."""
+    sensitive_keys = {'private_key', 'api_key', 'passphrase', 'mnemonic'}
+    return {k: v for k, v in data.items() if k not in sensitive_keys}
 
-if __name__ == "__main__":
-    sample_data = [
-        {"asset": "BTC", "amount": 0.5, "wallet_address": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"},
-        {"asset": "ETH", "amount": -1, "wallet_address": "invalid"}
-    ]
-    process_transactions(sample_data)
+def format_wei_to_eth(wei_amount: int) -> float:
+    """Converts wei units to standard ether decimal format."""
+    return float(wei_amount) / 10**18
+
+def validate_transaction_payload(payload: Optional[Dict[str, Any]]) -> bool:
+    """Basic validation for crypto transaction dictionaries."""
+    if not payload or not isinstance(payload, dict):
+        return False
+    required_fields = {'amount', 'currency', 'recipient'}
+    return required_fields.issubset(payload.keys())
