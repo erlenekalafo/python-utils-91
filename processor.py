@@ -1,43 +1,24 @@
-from typing import List, Dict, Optional
+import hashlib
+import hmac
+import secrets
 
-class CryptoProcessor:
-    """Handles cryptographic data transformation and validation tasks."""
 
-    def __init__(self, key_version: int = 1) -> None:
-        self.key_version: int = key_version
+def hash_data(data: bytes) -> str:
+    """Generate SHA-256 hash of the input data."""
+    return hashlib.sha256(data).hexdigest()
 
-    def process_payload(self, data: List[Dict[str, str]]) -> Dict[str, bool]:
-        """
-        Validates and marks payload entries based on hex integrity.
 
-        Args:
-            data: A list of dictionaries containing raw crypto hex strings.
+def compute_hmac(key: bytes, message: bytes) -> str:
+    """Compute HMAC-SHA256 signature for a message using a key."""
+    return hmac.new(key, message, hashlib.sha256).hexdigest()
 
-        Returns:
-            A mapping of hex keys to their validity status.
-        """
-        results: Dict[str, bool] = {}
-        for entry in data:
-            raw_val: Optional[str] = entry.get("hex")
-            if raw_val and self._is_valid_hex(raw_val):
-                results[raw_val] = True
-            else:
-                results[raw_val or "unknown"] = False
-        return results
 
-    def _is_valid_hex(self, value: str) -> bool:
-        """
-        Checks if a string is a valid hexadecimal sequence.
-        """
-        try:
-            int(value, 16)
-            return len(value) % 2 == 0
-        except ValueError:
-            return False
+def verify_signature(key: bytes, message: bytes, expected_signature: str) -> bool:
+    """Verify an HMAC-SHA256 signature securely."""
+    actual_signature = compute_hmac(key, message)
+    return hmac.compare_digest(actual_signature, expected_signature)
 
-    def get_summary(self, results: Dict[str, bool]) -> str:
-        """
-        Generates a human-readable summary of processed crypto records.
-        """
-        passed: int = sum(1 for v in results.values() if v)
-        return f"Processed {len(results)} items: {passed} valid, {len(results) - passed} invalid."
+
+def generate_secure_key(length: int = 32) -> bytes:
+    """Generate a cryptographically secure random key."""
+    return secrets.token_bytes(length)
