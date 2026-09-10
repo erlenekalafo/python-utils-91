@@ -1,41 +1,36 @@
-CRYPTO_CURRENCIES = ['BTC', 'ETH', 'LTC', 'XRP']
+"""Constants for cryptocurrency data processing and validation."""
 
-API_URLS = {
-    'coinmarketcap': 'https://api.coinmarketcap.com/v1/',
-    'coingecko': 'https://api.coingecko.com/api/v3/',
+# Common cryptocurrency ticker symbols
+SUPPORTED_COINS = {
+    "BTC": "Bitcoin",
+    "ETH": "Ethereum",
+    "USDT": "Tether",
+    "SOL": "Solana",
+    "ADA": "Cardano",
+    "DOT": "Polkadot",
 }
 
-DEFAULT_TIMEOUT = 10  # seconds
-
-HEADER = {
-    'User-Agent': 'python-utils-91 v1.0',
-    'Accept': 'application/json',
+# Regular expressions for address validation
+ADDRESS_REGEXES = {
+    "BTC_LEGACY": "^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$",
+    "BTC_BECH32": "^(bc1)[a-zA-HJ-NP-Z0-9]{25,39}$",
+    "ETH": "^0x[a-fA-F0-9]{40}$",
 }
 
-CURRENCY_SYMBOLS = {
-    'BTC': '₿',
-    'ETH': 'Ξ',
-    'LTC': 'Ł',
-    'XRP': 'XRP',
+# Decimals for standard tokens
+TOKEN_DECIMALS = {
+    "BTC": 8,
+    "ETH": 18,
+    "USDT": 6,
+    "USDC": 6,
+    "DAI": 18,
 }
 
-# This is a mapping of currency pairs to their respective display names
-CURRENCY_PAIRS = {
-    'BTC/USD': 'Bitcoin to US Dollar',
-    'ETH/USD': 'Ethereum to US Dollar',
-    'LTC/USD': 'Litecoin to US Dollar',
-    'XRP/USD': 'Ripple to US Dollar',
-}
+# Base API Endpoints for common data providers
+COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3"
+BINANCE_BASE_URL = "https://api.binance.com/api/v3"
 
-# Threshold values for trading strategies
-PRICE_ALERT_THRESHOLD = 100  # USD
-VOLUME_ALERT_THRESHOLD = 1000  # Number of coins
 
-# Slippage percentage for trades
-SLIPPAGE_PERCENTAGE = 1.5
-
-# Dictionary for storing API keys or secrets for different exchanges
-API_KEYS = {
-    'binance': 'your_binance_api_key',
-    'coinbase': 'your_coinbase_api_key',
-}
+def get_decimals(ticker: str, default: int = 18) -> int:
+    """Retrieve the standard decimal places for a given token ticker."""
+    return TOKEN_DECIMALS.get(ticker.upper(), default)
