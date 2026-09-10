@@ -1,29 +1,46 @@
 import hashlib
-import hmac
-import json
-from typing import Dict, Any, Optional
+from functools import lru_cache
+from typing import List, Union
 
-def generate_signature(api_secret: str, payload: Dict[str, Any]) -> str:
-    """Generates a HMAC-SHA256 signature for API requests."""
-    serialized_payload = json.dumps(payload, sort_keys=True, separators=(',', ':'))
-    return hmac.new(
-        api_secret.encode('utf-8'),
-        serialized_payload.encode('utf-8'),
-        hashlib.sha256
-    ).hexdigest()
 
-def sanitize_crypto_data(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Removes sensitive fields from crypto transaction logs."""
-    sensitive_keys = {'private_key', 'api_key', 'passphrase', 'mnemonic'}
-    return {k: v for k, v in data.items() if k not in sensitive_keys}
+@lru_cache(maxsize=1024)
+def fast_sha256(data: bytes) -> str:
+    """Compute and cache SHA-256 hash for binary data."""
+    return hashlib.sha256(data).hexdigest()
 
-def format_wei_to_eth(wei_amount: int) -> float:
-    """Converts wei units to standard ether decimal format."""
-    return float(wei_amount) / 10**18
 
-def validate_transaction_payload(payload: Optional[Dict[str, Any]]) -> bool:
-    """Basic validation for crypto transaction dictionaries."""
-    if not payload or not isinstance(payload, dict):
-        return False
-    required_fields = {'amount', 'currency', 'recipient'}
-    return required_fields.issubset(payload.keys())
+def batch_hash_verification(
+    data_blocks: List[bytes], expected_hashes: List[str]
+) -> List[bool]:
+    """Verify a batch of data blocks against expected hashes efficiently.
+    
+    Uses cached hash function to speed up repeated lookups.
+    """
+    if len(data_blocks) != len(expected_hashes):
+        raise ValueError("Block count must match hash count")
+
+    results = []
+    for block, expected in zip(data_blocks, expected_hashes):
+        calculated = fast_sha256(block)
+        results.append(calculated.lower() == expected.lower())
+
+    return results
+
+
+class NonceSearcher:
+    """Optimized proof-of-work nonce search utility."""
+
+    def __init__(self, prefix_zeros: int = 4):
+        self.target_prefix = "0" * prefix_zeros
+
+    def find_nonce(self, base_data: bytes, max_iterations: int = 1000000) -> Union[int, None]:
+        """Find a nonce that produces a hash starting with target zeros."""
+        target = self.target_prefix
+        sha = hashlib.sha256
+
+        for nonce in range(max_iterations):
+            candidate = base_data + nonce.to_bytes(8, byteorder="big")
+            digest = sha(candidate).hexdigest()
+            if digest.startswith(target):
+                return nonce
+        return None
