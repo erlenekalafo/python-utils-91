@@ -1,27 +1,34 @@
-import decimal
-from typing import Union, Dict
+import logging
 
-def normalize_crypto_amount(amount: Union[str, float, int], precision: int = 8) -> decimal.Decimal:
-    """Converts raw crypto inputs to a precise decimal for calculation."""
-    context = decimal.getcontext()
-    context.rounding = decimal.ROUND_DOWN
+def validate_crypto_payload(data):
+    """Ensures payload meets minimum requirements."""
+    required_keys = {'asset', 'amount', 'timestamp'}
+    if not isinstance(data, dict) or not required_keys.issubset(data.keys()):
+        return False
+    if data['amount'] <= 0:
+        return False
+    return True
+
+def run_processor(data_stream):
+    """Main processing loop with integrated input validation."""
+    logger = logging.getLogger(__name__)
     
-    try:
-        value = decimal.Decimal(str(amount))
-        return value.quantize(decimal.Decimal(10) ** -precision)
-    except (decimal.InvalidOperation, ValueError) as e:
-        raise ValueError(f"Invalid crypto amount format: {amount}") from e
+    for entry in data_stream:
+        if not validate_crypto_payload(entry):
+            logger.warning(f"Discarding invalid packet: {entry}")
+            continue
+        
+        try:
+            # Simulate transaction processing
+            process_trade(entry)
+        except Exception as e:
+            logger.error(f"Execution error on asset {entry['asset']}: {e}")
 
-def format_order_payload(symbol: str, side: str, amount: decimal.Decimal, price: decimal.Decimal) -> Dict:
-    """Constructs a standardized payload for exchange API requests."""
-    return {
-        "symbol": symbol.upper(),
-        "side": side.lower(),
-        "quantity": str(amount),
-        "price": str(price),
-        "timestamp": "auto"
-    }
+def process_trade(trade):
+    """Executes the trade logic."""
+    # Placeholder for actual crypto execution logic
+    pass
 
-def calculate_position_value(quantity: decimal.Decimal, price: decimal.Decimal) -> decimal.Decimal:
-    """Computes the total fiat value of a position."""
-    return (quantity * price).quantize(decimal.Decimal("0.01"))
+if __name__ == '__main__':
+    sample_data = [{'asset': 'BTC', 'amount': 0.5, 'timestamp': 1672531200}, {'asset': 'ETH', 'amount': -1, 'timestamp': 1672531205}]
+    run_processor(sample_data)
