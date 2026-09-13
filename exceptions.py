@@ -3,24 +3,27 @@ class CryptoUtilsError(Exception):
     pass
 
 class InvalidKeyError(CryptoUtilsError):
-    """Raised when an encryption key is malformed."""
+    """Raised when an encryption key fails format validation."""
     pass
 
-class DecryptionFailure(CryptoUtilsError):
-    """Raised when decryption fails due to corrupted data."""
+class DecryptionFailedError(CryptoUtilsError):
+    """Raised when the payload is malformed or key is incorrect."""
     pass
 
-class RateLimitExceeded(CryptoUtilsError):
-    """Raised when API request thresholds are hit."""
+class RateLimitExceededError(CryptoUtilsError):
+    """Raised when the crypto provider throttles requests."""
     pass
 
-def handle_crypto_error(err: Exception) -> None:
-    """Centralized error mapping for cryptographic operations."""
-    if isinstance(err, (InvalidKeyError, DecryptionFailure)):
-        # Log security-sensitive failures internally
-        print(f"Security Alert: {err}")
-    elif isinstance(err, RateLimitExceeded):
-        print("Backing off due to rate limits...")
+class ProviderConnectionError(CryptoUtilsError):
+    """Raised during network-level failures with crypto providers."""
+    pass
+
+def handle_crypto_exception(e: Exception) -> None:
+    """Standardizes error reporting across crypto modules."""
+    if isinstance(e, (InvalidKeyError, DecryptionFailedError)):
+        print(f"Security violation detected: {e}")
+    elif isinstance(e, (RateLimitExceededError, ProviderConnectionError)):
+        print(f"Infrastructure fault reported: {e}")
     else:
-        print(f"Unexpected error: {err}")
-        raise err
+        print(f"Unexpected system failure: {e}")
+    raise e
