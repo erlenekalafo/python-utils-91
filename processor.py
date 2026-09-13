@@ -1,70 +1,45 @@
-from datetime import datetime, timezone
-from typing import Dict, List, Any
+import re
+from typing import List, Dict, Any
+
+ETH_ADDRESS_PATTERN = re.compile(r"^0x[a-fA-F0-9]{40}$")
 
 
-def calculate_vwap(trades: List[Dict[str, Any]]) -> float:
-    """Calculate Volume-Weighted Average Price (VWAP) from trade records."""
-    total_volume = 0.0
-    total_value = 0.0
+def validate_transaction(tx: Dict[str, Any]) -> bool:
+    """Validate a single transaction dictionary for required fields and formats."""
+    if not isinstance(tx, dict):
+        return False
+    
+    sender = tx.get("sender")
+    recipient = tx.get("recipient")
+    amount = tx.get("amount")
 
-    for trade in trades:
-        price = float(trade.get("price", 0.0))
-        amount = float(trade.get("amount", 0.0))
-        total_value += price * amount
-        total_volume += amount
+    if not sender or not ETH_ADDRESS_PATTERN.match(str(sender)):
+        return False
+    if not recipient or not ETH_ADDRESS_PATTERN.match(str(recipient)):
+        return False
+    if not isinstance(amount, (int, float)) or amount <= 0:
+        return False
 
-    if total_volume == 0.0:
-        return 0.0
-    return round(total_value / total_volume, 8)
-
-
-def normalize_trade_data(
-    raw_trades: List[Dict[str, Any]], symbol: str
-) -> List[Dict[str, Any]]:
-    """Normalize heterogeneous exchange trade data into standard structure."""
-    normalized = []
-    for item in raw_trades:
-        ts = item.get("timestamp") or item.get("time") or item.get("T")
-        if isinstance(ts, (int, float)):
-            if ts > 1e11:
-                ts = ts / 1000.0
-            dt = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
-        else:
-            dt = datetime.now(timezone.utc).isoformat()
-
-        price = float(item.get("price") or item.get("p") or 0.0)
-        amount = float(item.get("amount") or item.get("qty") or item.get("q") or 0.0)
-        side = str(item.get("side") or item.get("m") or "unknown").lower()
-
-        normalized.append(
-            {
-                "symbol": symbol.upper(),
-                "price": price,
-                "amount": amount,
-                "volume_usd": price * amount,
-                "side": "buy" if side in ["buy", "true", "b"] else "sell",
-                "timestamp": dt,
-            }
-        )
-    return normalized
+    return True
 
 
-def aggregate_market_summary(raw_trades: List[Dict[str, Any]], symbol: str) -> Dict[str, Any]:
-    """Aggregate standard trade metric summary for a cryptocurrency pair."""
-    clean_trades = normalize_trade_data(raw_trades, symbol)
-    if not clean_trades:
-        return {"symbol": symbol.upper(), "trades_count": 0, "vwap": 0.0, "total_volume": 0.0}
+def process_transaction_queue(queue: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    """Main processing loop with input validation for incoming crypto transactions."""
+    processed = []
+    rejected = []
 
-    prices = [t["price"] for t in clean_trades]
-    total_vol = sum(t["amount"] for t in clean_trades)
-    vwap = calculate_vwap(clean_trades)
+    for item in queue:
+        try:
+            if validate_transaction(item):
+                item_copy = item.copy()
+                item_copy["status"] = "processed"
+                processed.append(item_copy)
+            else:
+                item_copy = item.copy() if isinstance(item, dict) else {"raw": item}
+                item_copy["status"] = "rejected"
+                item_copy["reason"] = "invalid_format_or_values"
+                rejected.append(item_copy)
+        except Exception as err:
+            rejected.append({"raw": str(item), "status": "failed", "reason": str(err)})
 
-    return {
-        "symbol": symbol.upper(),
-        "trades_count": len(clean_trades),
-        "high": max(prices),
-        "low": min(prices),
-        "vwap": vwap,
-        "total_volume": round(total_vol, 6),
-        "total_turnover": round(sum(t["volume_usd"] for t in clean_trades), 2),
-    }
+    return {"processed": processed, "rejected": rejected}
