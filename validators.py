@@ -1,40 +1,42 @@
 import re
-from typing import Any
+import logging
 
-class ValidationError(Exception):
-    """Custom exception for crypto address validation issues."""
-    pass
+# Configure basic logging for crypto operations
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('crypto-utils')
 
-def validate_eth_address(address: Any) -> bool:
-    """
-    Validates Ethereum hex address format.
-    Ensures input is a string and matches the expected hex pattern.
-    """
-    if not isinstance(address, str):
-        raise ValidationError(f"Address must be string, got {type(address).__name__}")
-    
-    # Hex addresses start with 0x followed by 40 hex characters
-    pattern = r"^0x[a-fA-F0-9]{40}$"
-    
-    if not re.match(pattern, address):
-        raise ValidationError(f"Invalid Ethereum address format: {address}")
-        
+class InputValidator:
+    """Utility class for validating crypto-related inputs."""
+
+    @staticmethod
+    def is_valid_address(address: str) -> bool:
+        """Validates standard hex-based crypto wallet addresses."""
+        if not isinstance(address, str) or not address.startswith('0x'):
+            return False
+        return bool(re.match(r'^0x[a-fA-F0-9]{40}$', address))
+
+    @staticmethod
+    def is_valid_amount(amount: float) -> bool:
+        """Ensures transaction amounts are positive numbers."""
+        return isinstance(amount, (int, float)) and amount > 0
+
+def process_transaction(data: dict):
+    """Main loop entry point with input validation."""
+    address = data.get('address')
+    amount = data.get('amount')
+
+    if not InputValidator.is_valid_address(address):
+        logger.error(f"Invalid address format: {address}")
+        return False
+
+    if not InputValidator.is_valid_amount(amount):
+        logger.error(f"Invalid transaction amount: {amount}")
+        return False
+
+    logger.info(f"Processing secure transaction for {address}")
     return True
 
-def validate_amount(amount: Any) -> float:
-    """
-    Validates numerical amount for crypto transactions.
-    Ensures value is positive and finite.
-    """
-    try:
-        val = float(amount)
-    except (ValueError, TypeError):
-        raise ValidationError(f"Amount must be a numeric value, got {amount}")
-        
-    if val <= 0:
-        raise ValidationError("Transaction amount must be greater than zero")
-        
-    if float('inf') == val:
-        raise ValidationError("Transaction amount cannot be infinite")
-        
-    return val
+if __name__ == "__main__":
+    # Example usage for test coverage
+    sample = {'address': '0x71C7656EC7ab88b098defB751B7401B5f6d8976F', 'amount': 0.05}
+    process_transaction(sample)
