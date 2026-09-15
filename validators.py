@@ -1,42 +1,36 @@
 import re
-import logging
 
-# Configure basic logging for crypto operations
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('crypto-utils')
+# Common regex patterns for standard crypto formats
+ETH_ADDRESS_REGEX = re.compile(r"^0x[a-fA-F0-9]{40}$")
+BTC_ADDRESS_REGEX = re.compile(r"^(1|3|[bc1q])[a-zA-HJ-NP-Z0-9]{25,59}$")
+SHA256_REGEX = re.compile(r"^[a-fA-F0-9]{64}$")
 
-class InputValidator:
-    """Utility class for validating crypto-related inputs."""
+def validate_ethereum_address(address: str) -> bool:
+    """
+    Validate if a given string matches the Ethereum address format.
 
-    @staticmethod
-    def is_valid_address(address: str) -> bool:
-        """Validates standard hex-based crypto wallet addresses."""
-        if not isinstance(address, str) or not address.startswith('0x'):
-            return False
-        return bool(re.match(r'^0x[a-fA-F0-9]{40}$', address))
+    Checks for the standard '0x' prefix followed by 40 hexadecimal characters.
+    Note: This validates structural format, not EIP-55 checksum validation.
 
-    @staticmethod
-    def is_valid_amount(amount: float) -> bool:
-        """Ensures transaction amounts are positive numbers."""
-        return isinstance(amount, (int, float)) and amount > 0
+    Args:
+        address: The string representation of the Ethereum address.
 
-def process_transaction(data: dict):
-    """Main loop entry point with input validation."""
-    address = data.get('address')
-    amount = data.get('amount')
-
-    if not InputValidator.is_valid_address(address):
-        logger.error(f"Invalid address format: {address}")
+    Returns:
+        True if the format is valid, False otherwise.
+    """
+    if not isinstance(address, str):
         return False
+    return bool(ETH_ADDRESS_REGEX.match(address))
 
-    if not InputValidator.is_valid_amount(amount):
-        logger.error(f"Invalid transaction amount: {amount}")
-        return False
+def validate_bitcoin_address(address: str) -> bool:
+    """
+    Validate if a given string matches standard Bitcoin address formats.
 
-    logger.info(f"Processing secure transaction for {address}")
-    return True
+    Supports legacy (1...), Pay-to-Script-Hash (3...), and Bech32/SegWit (bc1...) prefixes.
 
-if __name__ == "__main__":
-    # Example usage for test coverage
-    sample = {'address': '0x71C7656EC7ab88b098defB751B7401B5f6d8976F', 'amount': 0.05}
-    process_transaction(sample)
+    Args:
+        address: The string representation of the Bitcoin address.
+
+    Returns:
+        True if the format matches standard Bitcoin address prefixes and length, False otherwise.
+    """\
