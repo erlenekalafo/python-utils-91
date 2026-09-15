@@ -1,33 +1,38 @@
 import logging
-import sys
-from typing import Optional
+from logging.handlers import RotatingFileHandler
+import os
 
-class CryptoLogger:
-    """Standardized logger for crypto-related operations."""
+def setup_logger(name: str, log_file: str = 'crypto.log', level: int = logging.INFO):
+    """
+    Configures a rotating file logger for crypto operations.
+    Max file size: 5MB, keep 5 backups.
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
 
-    def __init__(self, name: str, level: int = logging.INFO) -> None:
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(level)
+    # Prevent duplicate handlers if function called multiple times
+    if not logger.handlers:
+        # Rotating file handler configuration
+        handler = RotatingFileHandler(
+            log_file, 
+            maxBytes=5 * 1024 * 1024, 
+            backupCount=5
+        )
         
-        handler = logging.StreamHandler(sys.stdout)
+        # Standard formatting for audit trails
         formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+        
+        logger.addHandler(handler)
+        
+        # Optional stream handler for development console visibility
+        console = logging.StreamHandler()
+        console.setFormatter(formatter)
+        logger.addHandler(console)
 
-    def info(self, message: str) -> None:
-        """Log informational crypto events."""
-        self.logger.info(message)
+    return logger
 
-    def error(self, message: str, exc_info: bool = False) -> None:
-        """Log critical trading or network errors."""
-        self.logger.error(message, exc_info=exc_info)
-
-    def warning(self, message: str) -> None:
-        """Log non-critical warnings like rate limits."""
-        self.logger.warning(message)
-
-def get_logger(name: str, level: Optional[int] = None) -> CryptoLogger:
-    """Factory function to retrieve a crypto logger instance."""
-    return CryptoLogger(name, level or logging.INFO)
+# Instance for global application usage
+app_logger = setup_logger('crypto_bot')
