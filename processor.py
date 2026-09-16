@@ -1,45 +1,40 @@
-import re
-from typing import List, Dict, Any
+import logging
+from typing import Any, Dict
 
-ETH_ADDRESS_PATTERN = re.compile(r"^0x[a-fA-F0-9]{40}$")
-
-
-def validate_transaction(tx: Dict[str, Any]) -> bool:
-    """Validate a single transaction dictionary for required fields and formats."""
-    if not isinstance(tx, dict):
+def validate_crypto_payload(data: Dict[str, Any]) -> bool:
+    """Validates transaction structure for crypto processing."""
+    required_keys = {'asset', 'amount', 'address'}
+    if not all(key in data for key in required_keys):
         return False
-    
-    sender = tx.get("sender")
-    recipient = tx.get("recipient")
-    amount = tx.get("amount")
-
-    if not sender or not ETH_ADDRESS_PATTERN.match(str(sender)):
+    if not isinstance(data['amount'], (int, float)) or data['amount'] <= 0:
         return False
-    if not recipient or not ETH_ADDRESS_PATTERN.match(str(recipient)):
-        return False
-    if not isinstance(amount, (int, float)) or amount <= 0:
-        return False
+    return len(str(data['address'])) >= 26
 
-    return True
-
-
-def process_transaction_queue(queue: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
-    """Main processing loop with input validation for incoming crypto transactions."""
-    processed = []
-    rejected = []
-
-    for item in queue:
+def run_processing_loop(data_stream: list):
+    """Main loop with input validation for stream processing."""
+    logging.basicConfig(level=logging.INFO)
+    for entry in data_stream:
         try:
-            if validate_transaction(item):
-                item_copy = item.copy()
-                item_copy["status"] = "processed"
-                processed.append(item_copy)
-            else:
-                item_copy = item.copy() if isinstance(item, dict) else {"raw": item}
-                item_copy["status"] = "rejected"
-                item_copy["reason"] = "invalid_format_or_values"
-                rejected.append(item_copy)
-        except Exception as err:
-            rejected.append({"raw": str(item), "status": "failed", "reason": str(err)})
+            if not isinstance(entry, dict):
+                logging.warning(f"Invalid data type: {type(entry)}")
+                continue
 
-    return {"processed": processed, "rejected": rejected}
+            if not validate_crypto_payload(entry):
+                logging.error(f"Validation failed for entry: {entry}")
+                continue
+
+            process_transaction(entry)
+        except Exception as e:
+            logging.error(f"Unexpected processing error: {e}")
+
+def process_transaction(data: Dict[str, Any]):
+    """Simulates secure crypto transaction handling."""
+    logging.info(f"Processing {data['asset']} transfer of {data['amount']}")
+
+if __name__ == '__main__':
+    sample_data = [
+        {'asset': 'BTC', 'amount': 0.5, 'address': '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'},
+        {'asset': 'ETH', 'amount': -1, 'address': 'invalid'},
+        {'invalid': 'data'}
+    ]
+    run_processing_loop(sample_data)
