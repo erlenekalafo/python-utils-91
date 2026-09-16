@@ -1,51 +1,41 @@
 # python-utils-91
 
-A high-performance Python toolkit designed for cryptocurrency data analysis, automated trade execution, and wallet management. This library simplifies complex blockchain interactions, allowing developers to build robust trading bots and portfolio trackers with minimal boilerplate.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+A lightweight Python utility library designed to streamline common Web3 and cryptographic operations. It provides developers with robust tools for address validation, gas estimation, and secure key derivation across multiple EVM-compatible blockchains.
 
 ## Features
 
-*   **Real-time Price Aggregator:** Efficiently fetch live ticker data from major exchanges (Binance, Kraken, Coinbase) using asynchronous requests.
-*   **Encrypted Wallet Utilities:** Securely generate, import, and manage mnemonic phrases and private keys with industry-standard AES-256 encryption.
-*   **Advanced Order Engine:** A lightweight wrapper for executing limit and market orders with built-in slippage protection and rate-limit handling.
-*   **Portfolio Snapshotter:** Generate instant, human-readable reports on asset allocation and historical ROI across multiple hot and cold wallets.
+* **EVM Address Validation:** Fast, local checksum validation and format enforcement for Ethereum-compatible addresses.
+* **BIP-39 HD Wallet Derivation:** Securely generate seed phrases and derive private/public keypairs using hierarchical deterministic paths.
+* **Gas & Fee Estimation:** Fetch and format real-time optimal gas prices directly from mainnet RPC endpoints.
 
 ## Installation
 
-Ensure you have Python 3.8+ installed. Install the package via pip:
+Install the package directly from PyPI:
 
 ```bash
 pip install python-utils-91
 ```
 
-For development mode and access to experimental trading modules:
+## Quick Start
 
-```bash
-git clone https://github.com/Developer/python-utils-91.git
-cd python-utils-91
-pip install -r requirements.txt
-```
-
-## Basic Usage
-
-Quickly fetch current BTC/USDT price data from the Binance API module:
+Validate an address and derive a keypair using the example below:
 
 ```python
-from pyutils_91.exchange import ExchangeClient
+from python_utils_91 import EVMValidator, KeyDeriver
 
-# Initialize client
-client = ExchangeClient(api_key="YOUR_KEY", api_secret="YOUR_SECRET")
+# Validate an Ethereum address checksum
+address = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
+if EVMValidator.is_valid_checksum(address):
+    print("Address is valid!")
 
-# Fetch ticker and print market data
-ticker = client.get_ticker(symbol="BTC/USDT")
-print(f"Current Price: {ticker['last_price']}")
-
-# Place a market buy order
-order = client.create_order(symbol="BTC/USDT", side="buy", amount=0.01)
-print(f"Order Status: {order['status']}")
+# Derive a private key from a BIP-39 mnemonic
+mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+private_key = KeyDeriver.from_mnemonic(mnemonic, path="m/44'/60'/0'/0/0")
+print(f"Derived Private Key: {private_key[:10]}...")
 ```
 
 ## License
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
