@@ -1,45 +1,40 @@
-import json
 import os
+import json
 from typing import Any, Dict
 
-class ConfigLoader:
-    """Handles loading and merging crypto configuration settings."""
-    
-    def __init__(self, default_config: Dict[str, Any]):
-        self.config = default_config
-
-    def load_from_file(self, filepath: str) -> None:
-        """Updates config dictionary from a local json file."""
-        if os.path.exists(filepath):
-            try:
-                with open(filepath, 'r') as f:
-                    user_config = json.load(f)
-                    self.update_recursive(self.config, user_config)
-            except (json.JSONDecodeError, IOError) as e:
-                print(f"Config loading failed: {e}")
-
-    def update_recursive(self, base: Dict[str, Any], update: Dict[str, Any]) -> None:
-        """Deep update for nested configuration dictionaries."""
-        for key, value in update.items():
-            if isinstance(value, dict) and key in base and isinstance(base[key], dict):
-                self.update_recursive(base[key], value)
-            else:
-                base[key] = value
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """Access config values with optional fallback."""
-        return self.config.get(key, default)
-
-# Default configuration for crypto operations
-DEFAULT_SETTINGS = {
+DEFAULT_CONFIG = {
     "rpc_url": "https://mainnet.infura.io/v3/",
     "timeout": 30,
     "retry_attempts": 3,
-    "gas_strategy": "dynamic"
+    "debug": False
 }
 
-def get_config_loader() -> ConfigLoader:
-    loader = ConfigLoader(DEFAULT_SETTINGS)
-    if os.environ.get("CRYPTO_CONFIG_PATH"):
-        loader.load_from_file(os.environ["CRYPTO_CONFIG_PATH"])
-    return loader
+def load_config(config_path: str = "config.json") -> Dict[str, Any]:
+    """
+    Loads configuration from a JSON file with system-wide defaults.
+    """
+    config = DEFAULT_CONFIG.copy()
+    
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                user_config = json.load(f)
+                config.update(user_config)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Warning: Could not load config {config_path}: {e}")
+    
+    # Override with environment variables if present
+    env_mapping = {
+        "RPC_URL": "rpc_url",
+        "TIMEOUT": "timeout"
+    }
+    
+    for env_var, key in env_mapping.items():
+        value = os.getenv(env_var)
+        if value is not None:
+            # Attempt to cast numeric values from environment
+            if value.isdigit():
+                value = int(value)
+            config[key] = value
+            
+    return config
