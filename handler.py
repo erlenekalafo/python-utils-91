@@ -1,39 +1,53 @@
-import functools
-from typing import Callable, Any, Dict
+import hashlib
+import hmac
+import time
+from typing import Any, Dict
 
-# Cache for crypto exchange rate lookups to reduce overhead
-_RATE_CACHE: Dict[str, float] = {}
 
-@functools.lru_cache(maxsize=1024)
-def get_normalized_price(asset: str, quote: str) -> float:
-    """Fetches price with memoization to optimize recurring calls."""
-    # Placeholder for actual network-bound crypto price fetcher
-    # In a real scenario, this would interface with an API client
-    return 0.0
+class CryptoApiHandler:
+    """Handles API request signing and webhook signature verification for crypto exchanges."""
 
-class DataHandler:
-    def __init__(self, buffer_size: int = 500):
-        self.buffer = []
-        self.buffer_size = buffer_size
+    def __init__(self, api_key: str, api_secret: str) -> None:
+        """Initializes the handler with API credentials."""
+        self.api_key: str = api_key
+        self.api_secret: bytes = api_secret.encode("utf-8")
 
-    def process_batch(self, items: list) -> None:
-        """Batch processing to minimize IO context switching."""
-        for item in items:
-            self.buffer.append(item)
-            if len(self.buffer) >= self.buffer_size:
-                self._flush()
+    def sign_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Signs the payload dictionary by adding a timestamp and HMAC-SHA256 signature.
 
-    def _flush(self) -> None:
-        """Efficient clearing of the internal memory buffer."""
-        # Batch database commit or network send logic here
-        self.buffer.clear()
+        Args:
+            payload: The dictionary of request parameters to sign.
 
-def memoized_transform(func: Callable) -> Callable:
-    """Decorator for caching expensive crypto calculation results."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        key = str(args) + str(kwargs)
-        if key not in _RATE_CACHE:
-            _RATE_CACHE[key] = func(*args, **kwargs)
-        return _RATE_CACHE[key]
-    return wrapper
+        Returns:
+            A new dictionary containing the original params, timestamp, and signature.
+        """
+        signed_params = payload.copy()
+        if "timestamp" not in signed_params:
+            signed_params["timestamp"] = int(time.time() * 1000)
+
+        query_string = "&".join(
+            f"{key}={value}" for key, value in sorted(signed_params.items())
+        )
+
+        signature = hmac.new(
+            self.api_secret, query_string.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
+
+        signed_params["signature"] = signature
+        return signed_params
+
+    def verify_webhook_payload(self, payload: bytes, signature: str) -> bool:
+        """Verifies an incoming webhook payload against a provided HMAC-SHA256 signature.
+
+        Args:
+            payload: The raw bytes received in the webhook request.
+            signature: The signature header provided by the webhook sender.
+
+        Returns:
+            True if the signature is valid and matches, False otherwise.
+        """
+        expected_signature = hmac.new(
+            self.api_secret, payload, hashlib.sha256
+        ).hexdigest()
+
+        return hmac.compare_digest(expected_signature, signature)
