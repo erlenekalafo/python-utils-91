@@ -1,55 +1,55 @@
-from typing import List, Dict, Tuple, Any
+import time
+import random
+import logging
+from functools import wraps
+from typing import Callable, Type, Tuple, Any
 
+logger = logging.getLogger(__name__)
 
-def calculate_vwap(trades: List[Dict[str, float]]) -> float:
+def retry_network_op(
+    max_retries: int = 3,
+    initial_delay: float = 1.0,
+    backoff_factor: float = 2.0,
+    exceptions: Tuple[Type[Exception], ...] = (Exception,),
+) -> Callable:
     """
-    Calculate Volume-Weighted Average Price (VWAP) from a list of trades.
-    Each trade dictionary must contain 'price' and 'volume'.
+    Decorator to retry network operations with exponential backoff.
+    Useful for resilient crypto exchange API calls and RPC queries.
     """
-    if not trades:
-        return 0.0
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            delay = initial_delay
+            for attempt in range(1, max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as err:
+                    if attempt == max_retries:
+                        logger.error(f"Failed after {max_retries} attempts: {err}")
+                        raise err
+                    
+                    jitter = random.uniform(0, 0.1 * delay)
+                    sleep_time = delay + jitter
+                    logger.warning(
+                        f"Attempt {attempt}/{max_retries} failed for {func.__name__}: {err}. "
+                        f"Retrying in {sleep_time:.2f}s..."
+                    )
+                    time.sleep(sleep_time)
+                    delay *= backoff_factor
 
-    total_volume = sum(trade.get("volume", 0.0) for trade in trades)
-    if total_volume == 0.0:
-        return 0.0
-
-    price_volume_sum = sum(trade.get("price", 0.0) * trade.get("volume", 0.0) for trade in trades)
-    return round(price_volume_sum / total_volume, 8)
-
-
-def calculate_orderbook_imbalance(bids: List[Tuple[float, float]], asks: List[Tuple[float, float]], depth: int = 10) -> float:
-    """
-    Calculate bid-ask orderbook volume imbalance for a specified depth level.
-    Returns a value between -1.0 (sell pressure) and 1.0 (buy pressure).
-    """
-    top_bids = bids[:depth]
-    top_asks = asks[:depth]
-
-    bid_vol = sum(size for _, size in top_bids)
-    ask_vol = sum(size for _, size in top_asks)
-
-    total_vol = bid_vol + ask_vol
-    if total_vol == 0.0:
-        return 0.0
-
-    return round((bid_vol - ask_vol) / total_vol, 4)
+        return wrapper
+    return decorator
 
 
-def normalize_ohlcv_series(raw_candles: List[List[Any]]) -> List[Dict[str, float]]:
-    """
-    Parse standard raw exchange OHLCV arrays into structured dictionaries.
-    Expected format per candle: [timestamp, open, high, low, close, volume]
-    """
-    formatted_candles = []
-    for candle in raw_candles:
-        if len(candle) < 6:
-            continue
-        formatted_candles.append({
-            "timestamp": float(candle[0]),
-            "open": float(candle[1]),
-            "high": float(candle[2]),
-            "low": float(candle[3]),
-            "close": float(candle[4]),
-            "volume": float(candle[5])
-        })
-    return formatted_candles
+class CryptoNetworkClient:
+    """Client wrapper for crypto network operations with failure tolerance."""
+
+    def __init__(self, retries: int = 3):
+        self.retries = retries
+
+    @retry_network_op(max_retries=3, initial_delay=0.5, backoff_factor=2.0)
+    def fetch_ticker(self, symbol: str) -> dict:
+        """Simulates fetching ticker data from a crypto exchange."""
+        if symbol.upper() not in ["BTC/USD", "ETH/USD", "SOL/USD"]:
+            raise ValueError(f"Unsupported trading pair: {symbol}")
+        return {"symbol": symbol, "price": 50000.0, "status": "ok"}
