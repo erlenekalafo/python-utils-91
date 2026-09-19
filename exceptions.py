@@ -1,32 +1,29 @@
 class CryptoError(Exception):
-    """Base exception for crypto operations."""
-    pass
-
-class ValidationError(CryptoError):
-    """Raised when input data validation fails."""
-    pass
-
-class ConnectionTimeoutError(CryptoError):
-    """Raised when network operations exceed limits."""
-    pass
-
-class RateLimitError(CryptoError):
-    """Raised when API requests exceed limits."""
+    """Base exception for crypto-related operations."""
     pass
 
 class InsufficientFundsError(CryptoError):
-    """Raised during failed transaction validation."""
+    """Raised when wallet balance is too low."""
     pass
 
-def raise_if_invalid(condition: bool, message: str):
-    """Helper to raise ValidationError if condition is false."""
-    if not condition:
-        raise ValidationError(message)
+class SignatureVerificationError(CryptoError):
+    """Raised when cryptographic signature check fails."""
+    pass
 
-def handle_crypto_exception(e: Exception):
-    """Generic logging and re-raising helper."""
+class DataFormatError(CryptoError):
+    """Raised when input data is malformed or invalid."""
+    pass
+
+class NetworkTimeoutError(CryptoError):
+    """Raised when node connectivity times out."""
+    pass
+
+class RateLimitError(CryptoError):
+    """Raised when exceeding API request limits."""
+    pass
+
+def handle_crypto_exception(e: Exception) -> str:
+    """Converts custom crypto exceptions to human-readable strings."""
     if isinstance(e, CryptoError):
-        print(f"[CryptoError]: {e}")
-        raise e
-    print(f"[UnknownError]: {e}")
-    raise CryptoError("An unexpected internal error occurred")
+        return f"Crypto operation failed: {str(e)}"
+    return "An unexpected system error occurred."
