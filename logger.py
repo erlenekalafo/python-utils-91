@@ -2,32 +2,32 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 
-def setup_logger(name: str = "crypto_logger", log_file: str = "crypto.log") -> logging.Logger:
-    """Configures a rotating file logger for crypto operations."""
+def setup_logger(name: str = 'crypto_app', log_file: str = 'crypto.log', level=logging.INFO):
+    """Initializes a rotating file logger for crypto operations."""
     logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(level)
 
-    # Prevent duplicate handlers if function is called multiple times
+    # Prevent duplicate handlers if setup is called multiple times
     if not logger.handlers:
-        # 5MB per file, keep 5 backups
+        # File rotation: 5MB max per file, keep 3 backups
         handler = RotatingFileHandler(
-            log_file,
-            maxBytes=5 * 1024 * 1024,
-            backupCount=5
+            log_file, 
+            maxBytes=5 * 1024 * 1024, 
+            backupCount=3
         )
-
+        
         formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
-        # Optional: Add console stream for development debugging
+        # Optional stream output for console visibility
         console = logging.StreamHandler()
         console.setFormatter(formatter)
         logger.addHandler(console)
 
     return logger
 
-# Instance for quick access
+# Global instance for project-wide use
 crypto_logger = setup_logger()
