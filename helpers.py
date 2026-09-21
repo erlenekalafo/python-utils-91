@@ -1,34 +1,32 @@
 import hashlib
-from functools import lru_cache
+import hmac
+import time
 from typing import Dict, Any
 
-@lru_cache(maxsize=1024)
-def compute_crypto_hash(data: bytes, salt: str) -> str:
-    """Perform memory-efficient SHA-256 hashing with caching."""
-    hasher = hashlib.sha256()
-    hasher.update(data + salt.encode('utf-8'))
-    return hasher.hexdigest()
+def generate_signature(api_secret: str, payload: str) -> str:
+    """Generates an HMAC-SHA256 signature for API requests."""
+    return hmac.new(
+        api_secret.encode('utf-8'),
+        payload.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
 
-def batch_process_signatures(payloads: Dict[str, bytes], salt: str) -> Dict[str, str]:
-    """
-    Optimized batch processing for cryptographic signature verification
-    using cached lookups to minimize redundant computation.
-    """
-    results = {}
-    for key, content in payloads.items():
-        results[key] = compute_crypto_hash(content, salt)
-    return results
+def format_order_params(symbol: str, side: str, amount: float) -> Dict[str, Any]:
+    """Standardizes order parameters for exchange communication."""
+    return {
+        "symbol": symbol.upper(),
+        "side": side.lower(),
+        "amount": float(amount),
+        "timestamp": int(time.time() * 1000)
+    }
 
-def clear_hash_cache() -> None:
-    """Reset the LRU cache when memory usage thresholds are met."""
-    compute_crypto_hash.cache_clear()
+def sanitize_price(price: float, precision: int = 8) -> float:
+    """Truncates price to specific decimal precision for crypto."""
+    factor = 10 ** precision
+    return int(price * factor) / factor
 
-# Standardize cryptographic key derivation
-def derive_key(seed: str, iterations: int = 1000) -> bytes:
-    """Perform key derivation using PBKDF2 with configurable iterations."""
-    return hashlib.pbkdf2_hmac(
-        'sha256', 
-        seed.encode('utf-8'), 
-        b'static_salt_001', 
-        iterations
-    )
+def validate_crypto_address(address: str) -> bool:
+    """Basic length and alphanumeric validation for addresses."""
+    if not address or len(address) < 26 or len(address) > 42:
+        return False
+    return address.isalnum()
