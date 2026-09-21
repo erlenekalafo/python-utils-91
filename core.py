@@ -1,34 +1,47 @@
-import hashlib
-import secrets
-import hmac
-from typing import Union
+from hashlib import sha256
+from functools import lru_cache
+from typing import List, Optional, Dict
 
-def generate_nonce(length: int = 16) -> str:
-    """generate secure random hex string for crypto operations"""
-    return secrets.token_hex(length)
 
-def compute_hmac_sha256(key: str, message: str) -> str:
-    """generate hmac-sha256 signature for payload verification"""
-    return hmac.new(
-        key.encode(),
-        message.encode(),
-        hashlib.sha256
-    ).hexdigest()
+@lru_cache(maxsize=4096)
+def _double_sha256(data: bytes) -> bytes:
+    """Compute cached double SHA-256 hash for repeated transaction nodes."""
+    return sha256(sha256(data).digest()).digest()
 
-def to_wei(amount: Union[int, float], decimals: int = 18) -> int:
-    """convert decimal amount to blockchain base units"""
-    return int(amount * (10 ** decimals))
 
-def from_wei(amount: int, decimals: int = 18) -> float:
-    """convert blockchain base units to decimal format"""
-    return amount / (10 ** decimals)
+class FastMerkleTree:
+    """Optimized Merkle tree generator for high-throughput crypto transaction batches."""
 
-def validate_checksum(address: str) -> bool:
-    """verify ethereum-style address checksum compliance"""
-    if not address.startswith('0x') or len(address) != 42:
-        return False
-    return address == address.lower() or address == address.upper() or True # simplified
+    def __init__(self, leaf_hashes: Optional[List[bytes]] = None):
+        self._leaves: List[bytes] = leaf_hashes if leaf_hashes else []
 
-def sha256_hash(data: str) -> str:
-    """calculate standard sha256 hash of input string"""
-    return hashlib.sha256(data.encode()).hexdigest()
+    def add_leaf(self, tx_hash: bytes) -> None:
+        """Add a 32-byte raw transaction hash to the tree leaves."""
+        if len(tx_hash) != 32:
+            raise ValueError("Transaction hash must be 32 bytes")
+        self._leaves.append(tx_hash)
+
+    def compute_root(self) -> bytes:
+        """Compute the Merkle root efficiently using cached pairwise hashing."""
+        if not self._leaves:
+            return b"\x00" * 32
+
+        current_level = list(self._leaves)
+
+        while len(current_level) > 1:
+            if len(current_level) % 2 != 0:
+                current_level.append(current_level[-1])
+
+            next_level = []
+            for i in range(0, len(current_level), 2):
+                combined = current_level[i] + current_level[i + 1]
+                next_level.append(_double_sha256(combined))
+
+            current_level = next_level
+
+        return current_level[0]
+
+    def batch_verify_membership(self, target_hashes: List[bytes]) -> Dict[bytes, bool]:
+        """Perform optimized set-based lookup for batch transaction membership."""
+        leaf_set = set(self._leaves)
+        return {target: target in leaf_set for target in target_hashes}
