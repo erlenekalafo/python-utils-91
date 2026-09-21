@@ -1,40 +1,61 @@
-import os
 import json
-from typing import Any, Dict
+import os
+from pathlib import Path
+from typing import Any, Dict, Optional
 
-DEFAULT_CONFIG = {
-    "rpc_url": "https://mainnet.infura.io/v3/",
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "network": "mainnet",
+    "rpc_url": "https://eth.llamarpc.com",
     "timeout": 30,
-    "retry_attempts": 3,
-    "debug": False
+    "max_retries": 3,
+    "gas_limit_multiplier": 1.2,
+    "enable_cache": True,
 }
 
-def load_config(config_path: str = "config.json") -> Dict[str, Any]:
-    """
-    Loads configuration from a JSON file with system-wide defaults.
-    """
-    config = DEFAULT_CONFIG.copy()
-    
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, "r") as f:
-                user_config = json.load(f)
-                config.update(user_config)
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"Warning: Could not load config {config_path}: {e}")
-    
-    # Override with environment variables if present
-    env_mapping = {
-        "RPC_URL": "rpc_url",
-        "TIMEOUT": "timeout"
-    }
-    
-    for env_var, key in env_mapping.items():
-        value = os.getenv(env_var)
-        if value is not None:
-            # Attempt to cast numeric values from environment
-            if value.isdigit():
-                value = int(value)
-            config[key] = value
-            
-    return config
+
+class ConfigLoader:
+    """Loads application configuration with fallback defaults for crypto utilities."""
+
+    def __init__(self, config_path: Optional[str] = None) -> None:
+        self.config_path = Path(config_path) if config_path else None
+        self._config: Dict[str, Any] = DEFAULT_CONFIG.copy()
+        self.load()
+
+    def load(self) -> Dict[str, Any]:
+        """Loads configuration from file and environment variables."""
+        if self.config_path and self.config_path.exists():
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    file_data = json.load(f)
+                    if isinstance(file_data, dict):
+                        self._config.update(file_data)
+            except (json.JSONDecodeError, IOError) as err:
+                print(f"Warning: Failed to load config file ({err}). Using defaults.")
+
+        # Environment variable overrides (e.g. CRYPTO_RPC_URL)
+        env_mappings = {
+            "CRYPTO_NETWORK": "network",
+            "CRYPTO_RPC_URL": "rpc_url",
+            "CRYPTO_TIMEOUT": "timeout",
+        }
+        for env_var, config_key in env_mappings.items():
+            val = os.getenv(env_var)
+            if val is not None:
+                if config_key == "timeout":
+                    try:
+                        self._config[config_key] = int(val)
+                    except ValueError:
+                        pass
+                else:
+                    self._config[config_key] = val
+
+        return self._config
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Retrieves a configuration value by key."""
+        return self._config.get(key, default)
+
+    @property
+    def config(self) -> Dict[str, Any]:
+        """Returns read-only view of current configuration."""
+        return self._config.copy()
