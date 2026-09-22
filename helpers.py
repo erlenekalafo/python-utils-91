@@ -1,42 +1,31 @@
-import logging
-from typing import Any, Optional
+import hashlib
+import hmac
+import json
+import base64
+from typing import Any, Dict
 
-logger = logging.getLogger(__name__)
+def generate_sha256_hash(data: str) -> str:
+    """Generate hex digest of input string."""
+    return hashlib.sha256(data.encode('utf-8')).hexdigest()
 
-class CryptoError(Exception):
-    """Base exception for crypto-utils-91 operations."""
-    pass
+def create_hmac_signature(key: str, message: str) -> str:
+    """Create HMAC-SHA256 signature for API requests."""
+    return hmac.new(key.encode('utf-8'), message.encode('utf-8'), hashlib.sha256).hexdigest()
 
-def validate_payload(data: Any) -> bool:
-    """Ensures input is a non-empty dictionary for cryptographic processing."""
-    if not isinstance(data, dict):
-        logger.error("Invalid payload type: expected dict")
-        return False
-    if not data:
-        logger.warning("Empty payload received")
-        return False
-    return True
+def encode_to_base64(data: str) -> str:
+    """Encode string to base64 format."""
+    return base64.b64encode(data.encode('utf-8')).decode('utf-8')
 
-def safe_decrypt(key: str, encrypted_data: Optional[str]) -> Optional[str]:
-    """Attempts decryption with basic integrity checks."""
-    try:
-        if not key or not encrypted_data:
-            raise ValueError("Missing decryption credentials")
-        
-        # Simulation of decryption logic
-        return f"decrypted_{encrypted_data}"
-    except ValueError as e:
-        logger.error(f"Decryption parameter error: {e}")
-        return None
-    except Exception as e:
-        logger.critical(f"Unexpected crypto failure: {e}")
-        return None
+def decode_from_base64(encoded: str) -> str:
+    """Decode base64 string to original format."""
+    return base64.b64decode(encoded.encode('utf-8')).decode('utf-8')
 
-def format_address(address: Any) -> str:
-    """Sanitizes and formats crypto wallet addresses."""
-    try:
-        if not isinstance(address, str):
-            raise TypeError("Address must be a string")
-        return address.strip().lower()
-    except TypeError:
-        return "0x0000000000000000000000000000000000000000"
+def serialize_json(data: Dict[str, Any]) -> str:
+    """Safe JSON serialization for crypto payloads."""
+    return json.dumps(data, sort_keys=True, separators=(',', ':'))
+
+def mask_address(address: str, visible: int = 6) -> str:
+    """Mask crypto address for logging safety."""
+    if len(address) <= visible * 2:
+        return address
+    return f"{address[:visible]}...{address[-visible:]}"
