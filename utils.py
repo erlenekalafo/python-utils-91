@@ -1,36 +1,27 @@
-import hashlib
-import hmac
-import base64
-from typing import Optional
+import time
+import functools
+import logging
+from typing import Callable, Any
 
-class CryptoUtils:
-    """Collection of helper methods for cryptographic operations."""
+logger = logging.getLogger(__name__)
 
-    @staticmethod
-    def generate_hmac(key: str, message: str, algorithm: str = 'sha256') -> str:
-        """Generates a HMAC signature for data integrity verification."""
-        return hmac.new(
-            key.encode('utf-8'),
-            message.encode('utf-8'),
-            getattr(hashlib, algorithm)
-        ).hexdigest()
-
-    @staticmethod
-    def encode_base64(data: str) -> str:
-        """Encodes string data to base64 format."""
-        return base64.b64encode(data.encode('utf-8')).decode('utf-8')
-
-    @staticmethod
-    def decode_base64(encoded_data: str) -> str:
-        """Decodes base64 string data to utf-8 format."""
-        return base64.b64decode(encoded_data.encode('utf-8')).decode('utf-8')
-
-    @staticmethod
-    def secure_compare(val1: str, val2: str) -> bool:
-        """Constant-time string comparison to prevent timing attacks."""
-        return hmac.compare_digest(val1, val2)
-
-def hash_payload(data: str, salt: Optional[str] = None) -> str:
-    """Helper for generating SHA-256 hashes with optional salt."""
-    payload = (data + (salt or '')).encode('utf-8')
-    return hashlib.sha256(payload).hexdigest()
+def retry_network_call(max_retries: int = 3, delay: float = 1.0):
+    """
+    Decorator to retry network functions on failure.
+    Designed for crypto exchange API stability.
+    """
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            last_exception = None
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}")
+                    time.sleep(delay * (2 ** attempt))
+            logger.error(f"Final attempt failed for {func.__name__}")
+            raise last_exception
+        return wrapper
+    return decorator
