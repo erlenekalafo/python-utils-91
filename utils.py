@@ -1,27 +1,29 @@
 import time
-import functools
 import logging
+from functools import wraps
 from typing import Callable, Any
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('python-utils-91')
 
-def retry_network_call(max_retries: int = 3, delay: float = 1.0):
-    """
-    Decorator to retry network functions on failure.
-    Designed for crypto exchange API stability.
-    """
+def with_retry(max_attempts: int = 3, delay: float = 1.0):
+    """Decorator for retrying network operations on failure."""
     def decorator(func: Callable):
-        @functools.wraps(func)
+        @wraps(func)
         def wrapper(*args, **kwargs) -> Any:
             last_exception = None
-            for attempt in range(max_retries):
+            for attempt in range(1, max_attempts + 1):
                 try:
                     return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
+                except Exception as e:
                     last_exception = e
-                    logger.warning(f"Attempt {attempt + 1} failed: {e}")
-                    time.sleep(delay * (2 ** attempt))
-            logger.error(f"Final attempt failed for {func.__name__}")
+                    logger.warning(
+                        f"Attempt {attempt} failed for {func.__name__}: {e}. "
+                        f"Retrying in {delay}s..."
+                    )
+                    if attempt < max_attempts:
+                        time.sleep(delay)
+            
+            logger.error(f"All {max_attempts} attempts failed for {func.__name__}.")
             raise last_exception
         return wrapper
     return decorator
