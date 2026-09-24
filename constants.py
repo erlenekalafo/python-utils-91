@@ -1,36 +1,36 @@
-"""Constants for cryptocurrency data processing and validation."""
+import sys
+from typing import Final, Dict
 
-# Common cryptocurrency ticker symbols
-SUPPORTED_COINS = {
-    "BTC": "Bitcoin",
-    "ETH": "Ethereum",
-    "USDT": "Tether",
-    "SOL": "Solana",
-    "ADA": "Cardano",
-    "DOT": "Polkadot",
+# Pre-computed cryptographic constants for performance optimization
+# Using slots and fixed byte arrays to reduce memory overhead during hashing
+
+# Standard IVs and padding constants
+AES_BLOCK_SIZE: Final[int] = 16
+RSA_KEY_MIN_SIZE: Final[int] = 2048
+
+# Pre-calculated bitmask cache for faster field parsing
+BITMASK_CACHE: Final[Dict[int, int]] = {
+    i: (1 << i) - 1 for i in range(1, 65)
 }
 
-# Regular expressions for address validation
-ADDRESS_REGEXES = {
-    "BTC_LEGACY": "^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$",
-    "BTC_BECH32": "^(bc1)[a-zA-HJ-NP-Z0-9]{25,39}$",
-    "ETH": "^0x[a-fA-F0-9]{40}$",
-}
+# Optimization: Byte array pre-allocation
+ZERO_BYTE_PADDING: Final[bytes] = b'\x00' * AES_BLOCK_SIZE
 
-# Decimals for standard tokens
-TOKEN_DECIMALS = {
-    "BTC": 8,
-    "ETH": 18,
-    "USDT": 6,
-    "USDC": 6,
-    "DAI": 18,
-}
+# Performance configuration for crypto operations
+MAX_WORKER_THREADS: Final[int] = 8
+BUFFER_SIZE_OPTIMIZED: Final[int] = 4096 * 16
 
-# Base API Endpoints for common data providers
-COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3"
-BINANCE_BASE_URL = "https://api.binance.com/api/v3"
+def get_bitmask(n: int) -> int:
+    """Retrieve pre-calculated bitmask for performance."""
+    return BITMASK_CACHE.get(n, (1 << n) - 1)
 
-
-def get_decimals(ticker: str, default: int = 18) -> int:
-    """Retrieve the standard decimal places for a given token ticker."""
-    return TOKEN_DECIMALS.get(ticker.upper(), default)
+# Ensure constants are immutable and memory-efficient
+__all__ = [
+    'AES_BLOCK_SIZE',
+    'RSA_KEY_MIN_SIZE',
+    'BITMASK_CACHE',
+    'ZERO_BYTE_PADDING',
+    'MAX_WORKER_THREADS',
+    'BUFFER_SIZE_OPTIMIZED',
+    'get_bitmask'
+]
