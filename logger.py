@@ -11,13 +11,13 @@ def setup_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
 
-    # Prevent duplicate handlers if re-initialized
+    # Prevent duplicate handlers if logger is re-initialized
     if not logger.handlers:
         formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
 
-        # Rotating file handler
+        # File handler with rotation
         file_handler = RotatingFileHandler(
             LOG_FILE, 
             maxBytes=MAX_BYTES, 
@@ -26,7 +26,7 @@ def setup_logger(name: str) -> logging.Logger:
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
 
-        # Optional: Console output
+        # Stream handler for console output
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
