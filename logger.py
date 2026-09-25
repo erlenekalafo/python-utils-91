@@ -1,34 +1,39 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+import sys
+from typing import Optional
 
-LOG_FILE = "crypto_app.log"
-MAX_BYTES = 5 * 1024 * 1024  # 5MB
-BACKUP_COUNT = 3
+def get_crypto_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+    """
+    Configures and returns a logger instance for crypto operations.
 
-def setup_logger(name: str) -> logging.Logger:
-    """Configures a rotating file logger for crypto operations."""
+    Args:
+        name: The name of the logger instance.
+        level: The logging severity level.
+
+    Returns:
+        A configured logging.Logger object.
+    """
     logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(level)
 
-    # Prevent duplicate handlers if logger is re-initialized
     if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
-
-        # File handler with rotation
-        file_handler = RotatingFileHandler(
-            LOG_FILE, 
-            maxBytes=MAX_BYTES, 
-            backupCount=BACKUP_COUNT
-        )
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
-        # Stream handler for console output
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
     return logger
+
+def log_trade_event(logger: logging.Logger, symbol: str, action: str, price: float) -> None:
+    """
+    Logs a specific cryptocurrency trade execution event.
+
+    Args:
+        logger: The logger instance to use.
+        symbol: The currency pair ticker.
+        action: Buy or Sell action.
+        price: The execution price.
+    """
+    logger.info("trade execution: %s %s at %.8f", action.upper(), symbol, price)
