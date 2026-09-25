@@ -1,39 +1,35 @@
-import logging
+import hashlib
+import hmac
+from typing import Dict, Optional
 
-def validate_crypto_payload(data: dict) -> bool:
-    """Ensures payload contains valid keys for processing."""
-    required = {'symbol', 'amount', 'timestamp'}
-    if not all(key in data for key in required):
-        return False
-    if not isinstance(data['amount'], (int, float)) or data['amount'] <= 0:
-        return False
-    return True
+class CryptoProcessor:
+    def __init__(self, secret: str):
+        self._secret = secret.encode('utf-8')
 
-def process_stream(data_stream: list):
-    """Main loop processing incoming crypto data."""
-    logger = logging.getLogger(__name__)
+    def generate_signature(self, message: str) -> str:
+        """Generate HMAC-SHA256 signature for payload."""
+        return hmac.new(
+            self._secret, 
+            message.encode('utf-8'), 
+            hashlib.sha256
+        ).hexdigest()
+
+    def verify_payload(self, message: str, signature: str) -> bool:
+        """Constant-time verification of HMAC signatures."""
+        expected = self.generate_signature(message)
+        return hmac.compare_digest(expected, signature)
+
+class DataSanitizer:
+    @staticmethod
+    def clean_payload(data: Dict) -> Dict:
+        """Strip empty values and normalize keys for crypto ops."""
+        return {k: v for k, v in data.items() if v is not None}
+
+def process_auth(payload: Dict, secret: str, signature: str) -> Optional[bool]:
+    """Orchestrator for crypto verification workflow."""
+    processor = CryptoProcessor(secret)
+    sanitized = DataSanitizer.clean_payload(payload)
     
-    for entry in data_stream:
-        if not isinstance(entry, dict):
-            logger.warning("Malformed stream entry: non-dict")
-            continue
-            
-        if not validate_crypto_payload(entry):
-            logger.error(f"Invalid crypto payload skipped: {entry.get('symbol')}")
-            continue
-            
-        # Core processing logic for verified data
-        try:
-            symbol = entry['symbol']
-            amount = entry['amount']
-            print(f"Processing {amount} units of {symbol}")
-        except KeyError as e:
-            logger.critical(f"Critical processing failure: {e}")
-
-if __name__ == "__main__":
-    sample_data = [
-        {'symbol': 'BTC', 'amount': 0.5, 'timestamp': 1625097600},
-        {'symbol': 'ETH', 'amount': -1, 'timestamp': 1625097600},
-        {'invalid': 'data'}
-    ]
-    process_stream(sample_data)
+    # Convert dict to string representation for signing
+    message = str(sorted(sanitized.items()))
+    return processor.verify_payload(message, signature)
