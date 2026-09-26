@@ -1,14 +1,15 @@
-# python-utils-91
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A lightweight Python utility library designed to streamline common Web3 and cryptographic operations. It provides developers with robust tools for address validation, gas estimation, and secure key derivation across multiple EVM-compatible blockchains.
+# python-utils-91
+
+A lightweight, high-performance Python utility suite designed to streamline blockchain interactions, wallet validation, and gas fee estimation across EVM-compatible networks. This library provides developers with highly optimized, production-ready cryptographic helpers to accelerate the development of decentralized applications, MEV bots, and Web3 integrations.
 
 ## Features
 
-* **EVM Address Validation:** Fast, local checksum validation and format enforcement for Ethereum-compatible addresses.
-* **BIP-39 HD Wallet Derivation:** Securely generate seed phrases and derive private/public keypairs using hierarchical deterministic paths.
-* **Gas & Fee Estimation:** Fetch and format real-time optimal gas prices directly from mainnet RPC endpoints.
+- **Multi-Chain Address Validation:** Out-of-the-box checksum validation for EVM, Solana, and Bitcoin (Bech32) addresses.
+- **Optimized Gas Estimation:** Fast, real-time gas fee suggestions leveraging public decentralized RPC endpoints.
+- **Ultra-Lightweight ABI Encoder:** Encode and decode smart contract transactions without importing heavy dependencies like `web3.py`.
+- **Mnemonic & Key Generation:** Secure, BIP-39 compliant seed phrase generation and private key derivation.
 
 ## Installation
 
@@ -20,22 +21,24 @@ pip install python-utils-91
 
 ## Quick Start
 
-Validate an address and derive a keypair using the example below:
+Validate an Ethereum address and fetch real-time optimal gas prices with just a few lines of code:
 
 ```python
-from python_utils_91 import EVMValidator, KeyDeriver
+from python_utils_91 import EVMAddress, GasEstimator
 
-# Validate an Ethereum address checksum
-address = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
-if EVMValidator.is_valid_checksum(address):
-    print("Address is valid!")
+# Validate Ethereum checksum address
+address = "0x71C7656EC7ab88b098defB751B7401B5f6d1476B"
+if EVMAddress.is_valid(address):
+    print(f"Address {address} is valid.")
 
-# Derive a private key from a BIP-39 mnemonic
-mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-private_key = KeyDeriver.from_mnemonic(mnemonic, path="m/44'/60'/0'/0/0")
-print(f"Derived Private Key: {private_key[:10]}...")
+# Fetch optimal gas fees for Ethereum Mainnet
+estimator = GasEstimator(chain_id=1)
+gas_prices = estimator.get_suggested_fees()
+
+print(f"Standard Gas: {gas_prices.standard} Gwei")
+print(f"Fast Gas: {gas_prices.fast} Gwei")
 ```
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
