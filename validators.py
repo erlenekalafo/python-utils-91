@@ -1,60 +1,45 @@
-import hashlib
-from typing import Tuple, Union
-
-BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+import re
+from typing import Union
 
 
-def base58_decode(v: str) -> bytes:
-    """Decodes a base58 encoded string into bytes, handling leading zero bytes."""
-    decimal = 0
-    for char in v:
-        decimal = decimal * 58 + BASE58_ALPHABET.index(char)
-    
-    # Preserve leading zero bytes (represented as '1' in Bitcoin base58)
-    n_pad = len(v) - len(v.lstrip('1'))
-    decoded_bytes = decimal.to_bytes((decimal.bit_length() + 7) // 8, byteorder='big')
-    return b'\x00' * n_pad + decoded_bytes
-
-
-def validate_bitcoin_address(address: Union[str, None]) -> Tuple[bool, str]:
-    """Validates a legacy Bitcoin mainnet address with strict checksum logic and error handling."""
-    if not address:
-        return False, "empty address value"
-
+def is_valid_eth_address(address: str) -> bool:
+    """Check if the provided string is a valid Ethereum address."""
     if not isinstance(address, str):
-        return False, "address must be a string type"
+        return False
+    return bool(re.match(r"^0x[a-fA-F0-9]{40}$", address))
 
-    if len(address) < 26 or len(address) > 35:
-        return False, f"invalid address length: {len(address)}"
 
-    if not (address.startswith("1") or address.startswith("3")):
-        return False, "invalid address prefix, must start with 1 or 3"
+def is_valid_btc_address(address: str) -> bool:
+    """Check if string is a valid Bitcoin address (Legacy, P2SH, Bech32)."""
+    if not isinstance(address, str):
+        return False
+    btc_pattern = r"^(1[a-km-zA-HJ-NP-Z1-9]{25,34}|3[a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[a-0-9w-z]{38,59})$"
+    return bool(re.match(btc_pattern, address))
 
-    try:
-        # Verify characters are within the base58 alphabet
-        for char in address:
-            if char not in BASE58_ALPHABET:
-                return False, f"invalid base58 character '{char}' detected"
 
-        decoded = base58_decode(address)
-        
-        # Legacy address payload + checksum must total 25 bytes
-        if len(decoded) != 25:
-            return False, "invalid decoded payload length"
+def is_valid_tx_hash(tx_hash: str) -> bool:
+    """Validate 64-character hex transaction hash (optional 0x prefix)."""
+    if not isinstance(tx_hash, str):
+        return False
+    clean_hash = tx_hash[2:] if tx_hash.startswith("0x") else tx_hash
+    return bool(re.match(r"^[a-fA-F0-9]{64}$", clean_hash))
 
-        payload = decoded[:-4]
-        checksum = decoded[-4:]
 
-        # Double SHA-256 for legacy checksum validation
-        first_sha = hashlib.sha256(payload).digest()
-        second_sha = hashlib.sha256(first_sha).digest()
+def normalize_address(address: str, chain: str = "eth") -> str:
+    """Normalize address formatting based on target blockchain type."""
+    if not isinstance(address, str):
+        raise ValueError("Address must be a string")
 
-        if second_sha[:4] != checksum:
-            return False, "checksum validation failed"
+    cleaned = address.strip()
+    chain_lower = chain.lower()
+    if chain_lower in ("eth", "ethereum"):
+        if not is_valid_eth_address(cleaned):
+            raise ValueError(f"Invalid Ethereum address: {cleaned}")
+        return cleaned.lower()
 
-        return True, "valid legacy address"
+    if chain_lower in ("btc", "bitcoin"):
+        if not is_valid_btc_address(cleaned):
+            raise ValueError(f"Invalid Bitcoin address: {cleaned}")
+        return cleaned
 
-    except ValueError as val_err:
-        return False, f"value parsing failure: {str(val_err)}"
-    except Exception as err:
-        return False, f"unexpected validation failure: {str(err)}"
+    raise ValueError(f"Unsupported chain for normalization: {chain}")
