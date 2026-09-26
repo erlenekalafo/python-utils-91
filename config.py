@@ -1,61 +1,67 @@
-import json
 import os
-from pathlib import Path
-from typing import Any, Dict, Optional
+import json
+from typing import Dict, Any, Optional
 
 DEFAULT_CONFIG: Dict[str, Any] = {
-    "network": "mainnet",
-    "rpc_url": "https://eth.llamarpc.com",
-    "timeout": 30,
+    "default_exchange": "binance",
+    "base_currency": "USD",
+    "timeout_seconds": 30,
     "max_retries": 3,
-    "gas_limit_multiplier": 1.2,
-    "enable_cache": True,
+    "rate_limit_calls": 100,
+    "rate_limit_period": 60,
+    "endpoints": {
+        "binance": "https://api.binance.com/api/v3",
+        "kraken": "https://api.kraken.com/0/public",
+        "coinbase": "https://api.exchange.coinbase.com"
+    },
+    "gas_limit_buffer": 1.2,
+    "enable_logging": True
 }
 
-
 class ConfigLoader:
-    """Loads application configuration with fallback defaults for crypto utilities."""
+    """Loads and manages configuration settings with crypto defaults."""
 
-    def __init__(self, config_path: Optional[str] = None) -> None:
-        self.config_path = Path(config_path) if config_path else None
-        self._config: Dict[str, Any] = DEFAULT_CONFIG.copy()
+    def __init__(self, config_path: Optional[str] = None):
+        self.config_path = config_path
+        self._config = DEFAULT_CONFIG.copy()
         self.load()
 
     def load(self) -> Dict[str, Any]:
-        """Loads configuration from file and environment variables."""
-        if self.config_path and self.config_path.exists():
+        """Load configuration from file if provided and merge with env vars."""
+        if self.config_path and os.path.exists(self.config_path):
             try:
                 with open(self.config_path, "r", encoding="utf-8") as f:
-                    file_data = json.load(f)
-                    if isinstance(file_data, dict):
-                        self._config.update(file_data)
-            except (json.JSONDecodeError, IOError) as err:
-                print(f"Warning: Failed to load config file ({err}). Using defaults.")
+                    file_config = json.load(f)
+                    self._update_nested_dict(self._config, file_config)
+            except (json.JSONDecodeError, OSError) as err:
+                print(f"Warning: Failed to load config file: {err}")
 
-        # Environment variable overrides (e.g. CRYPTO_RPC_URL)
-        env_mappings = {
-            "CRYPTO_NETWORK": "network",
-            "CRYPTO_RPC_URL": "rpc_url",
-            "CRYPTO_TIMEOUT": "timeout",
-        }
-        for env_var, config_key in env_mappings.items():
-            val = os.getenv(env_var)
-            if val is not None:
-                if config_key == "timeout":
-                    try:
-                        self._config[config_key] = int(val)
-                    except ValueError:
-                        pass
-                else:
-                    self._config[config_key] = val
-
+        self._override_from_env()
         return self._config
 
+    def _update_nested_dict(self, target: dict, source: dict) -> None:
+        """Recursively update target dictionary with source dictionary."""
+        for key, value in source.items():
+            if isinstance(value, dict) and key in target and isinstance(target[key], dict):
+                self._update_nested_dict(target[key], value)
+            else:
+                target[key] = value
+
+    def _override_from_env(self) -> None:
+        """Override configuration options using CRYPTO_ prefixed env variables."""
+        if exchange := os.getenv("CRYPTO_DEFAULT_EXCHANGE"):
+            self._config["default_exchange"] = exchange
+        if timeout := os.getenv("CRYPTO_TIMEOUT"):
+            try:
+                self._config["timeout_seconds"] = int(timeout)
+            except ValueError:
+                pass
+
     def get(self, key: str, default: Any = None) -> Any:
-        """Retrieves a configuration value by key."""
+        """Get a configuration parameter by key."""
         return self._config.get(key, default)
 
     @property
     def config(self) -> Dict[str, Any]:
-        """Returns read-only view of current configuration."""
-        return self._config.copy()
+        """Return full current configuration dict."""
+        return self._config
