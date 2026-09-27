@@ -1,27 +1,40 @@
-import hashlib
-import hmac
-import json
+import logging
 from typing import Dict, Any, Optional
 
-def sign_payload(payload: Dict[str, Any], secret: str) -> str:
-    """Generates a HMAC-SHA256 signature for crypto payloads."""
-    message = json.dumps(payload, sort_keys=True).encode('utf-8')
-    return hmac.new(secret.encode('utf-8'), message, hashlib.sha256).hexdigest()
+# Configure logging for crypto operations
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('crypto_handler')
 
-def validate_order_data(data: Dict[str, Any]) -> bool:
-    """Checks required fields for crypto exchange orders."""
-    required = {'symbol', 'side', 'quantity', 'price'}
-    return all(key in data for key in required)
+class CryptoHandler:
+    """Handles cryptographic payload processing and validation."""
 
-def format_price(amount: float, precision: int = 8) -> str:
-    """Formats crypto amounts to specific decimal precision."""
-    return f"{amount:.{precision}f}"
+    def __init__(self, key_id: str):
+        self.key_id = key_id
+        self.is_active = True
 
-def sanitize_order_book(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Cleans raw socket data for downstream processing."""
-    return {
-        "pair": data.get("s", "UNKNOWN"),
-        "bids": data.get("b", []),
-        "asks": data.get("a", []),
-        "timestamp": data.get("E")
-    }
+    def process_payload(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Sanitizes and prepares payload for encryption routines."""
+        if not data or 'signature' not in data:
+            logger.error('Invalid payload structure received')
+            return None
+
+        try:
+            sanitized = {
+                'id': data.get('id', 'unknown'),
+                'payload': data['payload'],
+                'timestamp': data.get('ts', 0)
+            }
+            return sanitized
+        except KeyError as e:
+            logger.warning(f'Missing required field: {e}')
+            return None
+
+    def reset_session(self) -> None:
+        """Reinitializes handler state."""
+        self.is_active = False
+        logger.info(f'Session {self.key_id} reset successfully')
+        self.is_active = True
+
+def get_handler(key_id: str) -> CryptoHandler:
+    """Factory function for creating clean handler instances."""
+    return CryptoHandler(key_id=key_id)
