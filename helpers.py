@@ -1,31 +1,49 @@
-import hashlib
-import hmac
-import json
-import base64
-from typing import Any, Dict
+import re
+from typing import Union, Dict, Any
 
-def generate_sha256_hash(data: str) -> str:
-    """Generate hex digest of input string."""
-    return hashlib.sha256(data.encode('utf-8')).hexdigest()
 
-def create_hmac_signature(key: str, message: str) -> str:
-    """Create HMAC-SHA256 signature for API requests."""
-    return hmac.new(key.encode('utf-8'), message.encode('utf-8'), hashlib.sha256).hexdigest()
+def satoshi_to_btc(satoshi: int) -> float:
+    """Convert satoshi amount to bitcoin float value."""
+    if not isinstance(satoshi, int) or satoshi < 0:
+        raise ValueError("Satoshi must be a non-negative integer")
+    return satoshi / 100_000_000.0
 
-def encode_to_base64(data: str) -> str:
-    """Encode string to base64 format."""
-    return base64.b64encode(data.encode('utf-8')).decode('utf-8')
 
-def decode_from_base64(encoded: str) -> str:
-    """Decode base64 string to original format."""
-    return base64.b64decode(encoded.encode('utf-8')).decode('utf-8')
+def btc_to_satoshi(btc: Union[int, float]) -> int:
+    """Convert bitcoin value to satoshis."""
+    if not isinstance(btc, (int, float)) or btc < 0:
+        raise ValueError("BTC amount must be a non-negative number")
+    return int(round(btc * 100_000_000))
 
-def serialize_json(data: Dict[str, Any]) -> str:
-    """Safe JSON serialization for crypto payloads."""
-    return json.dumps(data, sort_keys=True, separators=(',', ':'))
 
-def mask_address(address: str, visible: int = 6) -> str:
-    """Mask crypto address for logging safety."""
-    if len(address) <= visible * 2:
-        return address
-    return f"{address[:visible]}...{address[-visible:]}"
+def calculate_slippage(expected_price: float, actual_price: float) -> float:
+    """Calculate percentage slippage between expected and executed price."""
+    if expected_price <= 0 or actual_price <= 0:
+        raise ValueError("Prices must be greater than zero")
+    return abs(actual_price - expected_price) / expected_price * 100.0
+
+
+def is_valid_evm_address(address: str) -> bool:
+    """Validate EVM hex address format."""
+    if not isinstance(address, str):
+        return False
+    return bool(re.match(r"^0x[a-fA-F0-9]{40}$", address))
+
+
+def format_trade_summary(symbol: str, side: str, amount: float, price: float) -> Dict[str, Any]:
+    """Structure trade order details into a sanitized payload summary."""
+    clean_symbol = symbol.strip().upper()
+    clean_side = side.strip().lower()
+    
+    if clean_side not in ("buy", "sell"):
+        raise ValueError("Trade side must be either 'buy' or 'sell'")
+    if amount <= 0 or price <= 0:
+        raise ValueError("Amount and price must be positive numbers")
+
+    return {
+        "symbol": clean_symbol,
+        "side": clean_side,
+        "amount": round(amount, 8),
+        "price": round(price, 8),
+        "total_value": round(amount * price, 4),
+    }
