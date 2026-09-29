@@ -1,45 +1,42 @@
 import re
-from typing import Union
+from typing import Optional
 
+def validate_bitcoin_address(address: str) -> bool:
+    """
+    Validate a standard Bitcoin P2PKH/P2SH address format.
+    
+    Args:
+        address: The string representation of the BTC address.
 
-def is_valid_eth_address(address: str) -> bool:
-    """Check if the provided string is a valid Ethereum address."""
-    if not isinstance(address, str):
-        return False
-    return bool(re.match(r"^0x[a-fA-F0-9]{40}$", address))
+    Returns:
+        bool: True if the address matches the base58 regex.
+    """
+    pattern = r'^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$'
+    return bool(re.match(pattern, address))
 
+def validate_hex_key(key: str) -> bool:
+    """
+    Validate that a string is a valid hexadecimal private key format.
+    
+    Args:
+        key: The hex string to validate.
 
-def is_valid_btc_address(address: str) -> bool:
-    """Check if string is a valid Bitcoin address (Legacy, P2SH, Bech32)."""
-    if not isinstance(address, str):
-        return False
-    btc_pattern = r"^(1[a-km-zA-HJ-NP-Z1-9]{25,34}|3[a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[a-0-9w-z]{38,59})$"
-    return bool(re.match(btc_pattern, address))
+    Returns:
+        bool: True if the key length is valid and characters are hex.
+    """
+    return bool(re.fullmatch(r'[0-9a-fA-F]{64}', key))
 
+def sanitize_currency_code(code: str) -> Optional[str]:
+    """
+    Normalize and validate crypto currency ticker symbols.
+    
+    Args:
+        code: Ticker string like 'BTC' or 'eth'.
 
-def is_valid_tx_hash(tx_hash: str) -> bool:
-    """Validate 64-character hex transaction hash (optional 0x prefix)."""
-    if not isinstance(tx_hash, str):
-        return False
-    clean_hash = tx_hash[2:] if tx_hash.startswith("0x") else tx_hash
-    return bool(re.match(r"^[a-fA-F0-9]{64}$", clean_hash))
-
-
-def normalize_address(address: str, chain: str = "eth") -> str:
-    """Normalize address formatting based on target blockchain type."""
-    if not isinstance(address, str):
-        raise ValueError("Address must be a string")
-
-    cleaned = address.strip()
-    chain_lower = chain.lower()
-    if chain_lower in ("eth", "ethereum"):
-        if not is_valid_eth_address(cleaned):
-            raise ValueError(f"Invalid Ethereum address: {cleaned}")
-        return cleaned.lower()
-
-    if chain_lower in ("btc", "bitcoin"):
-        if not is_valid_btc_address(cleaned):
-            raise ValueError(f"Invalid Bitcoin address: {cleaned}")
-        return cleaned
-
-    raise ValueError(f"Unsupported chain for normalization: {chain}")
+    Returns:
+        str: Uppercase validated code or None if invalid.
+    """
+    clean_code = code.strip().upper()
+    if re.fullmatch(r'[A-Z]{2,6}', clean_code):
+        return clean_code
+    return None
