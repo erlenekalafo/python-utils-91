@@ -1,61 +1,40 @@
-import re
-from typing import Any, Dict, List, Tuple
+import logging
 
+def validate_transaction(tx):
+    """Ensures crypto transaction data is valid."""
+    required_fields = {'sender', 'receiver', 'amount', 'currency'}
+    if not all(field in tx for field in required_fields):
+        return False
+    if not isinstance(tx['amount'], (int, float)) or tx['amount'] <= 0:
+        return False
+    return True
 
-class TransactionProcessor:
-    """Processes and validates raw cryptocurrency transaction payloads."""
-
-    SUPPORTED_CURRENCIES = {"BTC", "ETH", "USDT", "SOL"}
-    ETH_ADDRESS_REGEX = re.compile(r"^0x[a-fA-F0-9]{40}$")
-
-    def __init__(self, min_amount: float = 0.0001):
-        self.min_amount = min_amount
-
-    def validate_payload(self, raw_tx: Dict[str, Any]) -> Tuple[bool, str]:
-        """Validates structure and values of a transaction payload."""
-        if not isinstance(raw_tx, dict):
-            return False, "Payload must be a dictionary"
-
-        tx_hash = raw_tx.get("tx_hash")
-        amount = raw_tx.get("amount")
-        address = raw_tx.get("address")
-        currency = raw_tx.get("currency")
-
-        if not tx_hash or not isinstance(tx_hash, str) or len(tx_hash) < 10:
-            return False, "Invalid or missing tx_hash"
-
-        if not isinstance(amount, (int, float)) or amount < self.min_amount:
-            return False, f"Amount must be a number >= {self.min_amount}"
-
-        if not address or not isinstance(address, str):
-            return False, "Invalid or missing recipient address"
-
-        if currency == "ETH" and not self.ETH_ADDRESS_REGEX.match(address):
-            return False, "Invalid Ethereum address format"
-
-        if currency not in self.SUPPORTED_CURRENCIES:
-            return False, f"Unsupported currency: {currency}"
-
-        return True, "Valid"
-
-    def process_batch(self, raw_transactions: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
-        """Main processing loop with payload input validation."""
-        processed = []
-        rejected = []
-
-        for raw_tx in raw_transactions:
-            is_valid, reason = self.validate_payload(raw_tx)
-            if not is_valid:
-                rejected.append({"payload": raw_tx, "reason": reason})
+def process_transactions(transactions):
+    """Main processing loop with input validation."""
+    processed_count = 0
+    for tx in transactions:
+        try:
+            if not validate_transaction(tx):
+                logging.warning(f"Invalid transaction skipped: {tx}")
                 continue
+            
+            # Simulate secure crypto processing logic
+            execute_transfer(tx)
+            processed_count += 1
+        except Exception as e:
+            logging.error(f"Unexpected error during processing: {e}")
+    return processed_count
 
-            tx_data = {
-                "tx_hash": raw_tx["tx_hash"],
-                "amount": float(raw_tx["amount"]),
-                "address": raw_tx["address"],
-                "currency": raw_tx["currency"].upper(),
-                "status": "QUEUED",
-            }
-            processed.append(tx_data)
+def execute_transfer(tx):
+    """Placeholder for internal crypto transfer logic."""
+    pass
 
-        return {"processed": processed, "rejected": rejected}
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    sample_data = [
+        {'sender': 'alice', 'receiver': 'bob', 'amount': 1.5, 'currency': 'BTC'},
+        {'sender': 'bob', 'amount': -10, 'currency': 'ETH'},
+        {'sender': 'charlie', 'receiver': 'dave', 'amount': 5}
+    ]
+    count = process_transactions(sample_data)
+    print(f"Successfully processed {count} transactions")
