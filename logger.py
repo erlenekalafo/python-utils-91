@@ -1,33 +1,33 @@
 import logging
-from logging.handlers import RotatingFileHandler
+import logging.handlers
 import os
 
-def setup_crypto_logger(name='crypto_utils', log_file='crypto.log', max_bytes=5*1024*1024, backup_count=3):
-    """Configures a rotating file logger for crypto operations."""
+def setup_logger(name: str = "crypto_app", log_file: str = "app.log") -> logging.Logger:
+    """Configures a rotating file logger for cryptographic operations."""
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
 
-    # Prevent duplicate handlers if re-initialized
+    # Prevent duplicate handlers if function is called multiple times
     if not logger.handlers:
+        # Rotate logs daily, keeping 7 days of history
+        handler = logging.handlers.TimedRotatingFileHandler(
+            log_file,
+            when="midnight",
+            interval=1,
+            backupCount=7,
+            encoding="utf-8"
+        )
+
         formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
         )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
-        # Rotate log file at 5MB, keep 3 backups
-        file_handler = RotatingFileHandler(
-            log_file, 
-            maxBytes=max_bytes, 
-            backupCount=backup_count
-        )
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
-        # Optional stream handler for console output
+        # Add console output for development visibility
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
 
     return logger
-
-# Instance for quick access
-crypto_logger = setup_crypto_logger()
