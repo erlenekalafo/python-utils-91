@@ -1,49 +1,56 @@
-import re
-from typing import Union, Dict, Any
+import hashlib
+import secrets
+from typing import Union
 
 
-def satoshi_to_btc(satoshi: int) -> float:
-    """Convert satoshi amount to bitcoin float value."""
-    if not isinstance(satoshi, int) or satoshi < 0:
-        raise ValueError("Satoshi must be a non-negative integer")
-    return satoshi / 100_000_000.0
+def generate_secure_salt(length: int = 16) -> bytes:
+    """
+    Generate a cryptographically secure random salt.
+
+    :param length: The size of the salt in bytes.
+    :return: A random bytes object of the specified length.
+    """
+    return secrets.token_bytes(length)
 
 
-def btc_to_satoshi(btc: Union[int, float]) -> int:
-    """Convert bitcoin value to satoshis."""
-    if not isinstance(btc, (int, float)) or btc < 0:
-        raise ValueError("BTC amount must be a non-negative number")
-    return int(round(btc * 100_000_000))
+def hash_data(data: Union[str, bytes], algorithm: str = "sha256") -> str:
+    """
+    Hash the given data using the specified cryptographic hash algorithm.
+
+    :param data: The input string or bytes to hash.
+    :param algorithm: The hashing algorithm to use (e.g., 'sha256', 'sha512').
+    :return: The hexadecimal string representation of the hash.
+    :raises ValueError: If the specified algorithm is not supported.
+    """
+    if isinstance(data, str):
+        data_bytes = data.encode("utf-8")
+    else:
+        data_bytes = data
+
+    try:
+        hasher = hashlib.new(algorithm)
+    except ValueError as e:
+        raise ValueError(f"Unsupported hashing algorithm: {algorithm}") from e
+
+    hasher.update(data_bytes)
+    return hasher.hexdigest()
 
 
-def calculate_slippage(expected_price: float, actual_price: float) -> float:
-    """Calculate percentage slippage between expected and executed price."""
-    if expected_price <= 0 or actual_price <= 0:
-        raise ValueError("Prices must be greater than zero")
-    return abs(actual_price - expected_price) / expected_price * 100.0
+def derive_key(passphrase: str, salt: bytes, iterations: int = 100000, key_length: int = 32) -> bytes:
+    """
+    Derive a cryptographic key from a passphrase and a salt using PBKDF2-HMAC-SHA256.
 
-
-def is_valid_evm_address(address: str) -> bool:
-    """Validate EVM hex address format."""
-    if not isinstance(address, str):
-        return False
-    return bool(re.match(r"^0x[a-fA-F0-9]{40}$", address))
-
-
-def format_trade_summary(symbol: str, side: str, amount: float, price: float) -> Dict[str, Any]:
-    """Structure trade order details into a sanitized payload summary."""
-    clean_symbol = symbol.strip().upper()
-    clean_side = side.strip().lower()
-    
-    if clean_side not in ("buy", "sell"):
-        raise ValueError("Trade side must be either 'buy' or 'sell'")
-    if amount <= 0 or price <= 0:
-        raise ValueError("Amount and price must be positive numbers")
-
-    return {
-        "symbol": clean_symbol,
-        "side": clean_side,
-        "amount": round(amount, 8),
-        "price": round(price, 8),
-        "total_value": round(amount * price, 4),
-    }
+    :param passphrase: The user passphrase as a string.
+    :param salt: A cryptographically secure salt.
+    :param iterations: The number of iterations for PBKDF2 (default: 100,000).
+    :param key_length: The desired length of the derived key in bytes (default: 32).
+    :return: The derived key as bytes.
+    """
+    passphrase_bytes = passphrase.encode("utf-8")
+    return hashlib.pbkdf2_hmac(
+        hash_name="sha256",
+        password=passphrase_bytes,
+        salt=salt,
+        iterations=iterations,
+        dklen=key_length
+    )
