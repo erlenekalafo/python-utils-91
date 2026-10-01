@@ -1,40 +1,32 @@
-import logging
+from typing import List, Dict, Optional
 
-def validate_transaction(tx):
-    """Ensures crypto transaction data is valid."""
-    required_fields = {'sender', 'receiver', 'amount', 'currency'}
-    if not all(field in tx for field in required_fields):
-        return False
-    if not isinstance(tx['amount'], (int, float)) or tx['amount'] <= 0:
-        return False
-    return True
+class CryptoProcessor:
+    """Handles cryptographic data processing tasks."""
 
-def process_transactions(transactions):
-    """Main processing loop with input validation."""
-    processed_count = 0
-    for tx in transactions:
-        try:
-            if not validate_transaction(tx):
-                logging.warning(f"Invalid transaction skipped: {tx}")
-                continue
-            
-            # Simulate secure crypto processing logic
-            execute_transfer(tx)
-            processed_count += 1
-        except Exception as e:
-            logging.error(f"Unexpected error during processing: {e}")
-    return processed_count
+    def __init__(self, key_size: int = 256) -> None:
+        self.key_size: int = key_size
 
-def execute_transfer(tx):
-    """Placeholder for internal crypto transfer logic."""
-    pass
+    def sanitize_payload(self, data: Dict[str, str]) -> Dict[str, str]:
+        """Removes non-hexadecimal characters from crypto keys."""
+        return {k: v.lower().strip() for k, v in data.items()}
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    sample_data = [
-        {'sender': 'alice', 'receiver': 'bob', 'amount': 1.5, 'currency': 'BTC'},
-        {'sender': 'bob', 'amount': -10, 'currency': 'ETH'},
-        {'sender': 'charlie', 'receiver': 'dave', 'amount': 5}
-    ]
-    count = process_transactions(sample_data)
-    print(f"Successfully processed {count} transactions")
+    def batch_process_signatures(self, signatures: List[str]) -> List[Optional[str]]:
+        """Validates and formats a list of hex signatures."""
+        processed: List[Optional[str]] = []
+        for sig in signatures:
+            if len(sig) >= self.key_size // 4:
+                processed.append(sig.upper())
+            else:
+                processed.append(None)
+        return processed
+
+    def calculate_checksum(self, data: bytes) -> str:
+        """Generates a simple hex checksum for a byte array."""
+        checksum: int = sum(data) % 0xFFFF
+        return hex(checksum).replace('0x', '').zfill(4)
+
+    def validate_node_health(self, nodes: List[Dict[str, any]]) -> bool:
+        """Checks if all nodes are responsive and secure."""
+        if not nodes:
+            return False
+        return all(node.get('active', False) for node in nodes)
