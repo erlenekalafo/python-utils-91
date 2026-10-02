@@ -1,53 +1,53 @@
+import json
 import os
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
-class CryptoConfig:
-    """Configuration manager for cryptocurrency API integrations and network settings.
+DEFAULT_CRYPTO_CONFIG: Dict[str, Any] = {
+    "exchange": "binance",
+    "base_currency": "USDT",
+    "api_timeout_seconds": 30,
+    "max_retries": 3,
+    "enable_websocket": True,
+    "rpc_nodes": {
+        "ethereum": "https://mainnet.infura.io/v3/your_key",
+        "polygon": "https://polygon-rpc.com",
+    },
+    "rate_limit_per_minute": 1200,
+}
 
-    Supports loading configuration from environment variables with fallback defaults
-    for mainnet and testnet environments.
-    """
+class ConfigLoader:
+    """Loads and manages crypto application configuration with default fallback values."""
 
-    def __init__(self, env: str = "production") -> None:
-        """Initialize the crypto configuration manager.
+    def __init__(self, config_path: Optional[str] = None) -> None:
+        self.config_path = config_path
+        self._config: Dict[str, Any] = DEFAULT_CRYPTO_CONFIG.copy()
+        if config_path:
+            self.load_from_file(config_path)
 
-        Args:
-            env: The deployment environment, typically 'production' or 'development'.
-        """
-        self.env: str = env.lower()
-        self.api_key: Optional[str] = os.getenv("CRYPTO_API_KEY")
-        self.network: str = os.getenv("CRYPTO_NETWORK", "mainnet")
-        self._endpoints: Dict[str, str] = {
-            "mainnet": "https://api.mainnet.crypto-node.org/v1",
-            "testnet": "https://api.testnet.crypto-node.org/v1"
-        }
+    def load_from_file(self, filepath: str) -> Dict[str, Any]:
+        """Loads configuration from a JSON file and updates default settings."""
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    user_config = json.load(f)
+                    self._deep_update(self._config, user_config)
+            except (json.JSONDecodeError, IOError) as err:
+                raise RuntimeError(f"Failed to load config file {filepath}: {err}")
+        return self._config
 
-    def get_api_endpoint(self) -> str:
-        """Retrieve the API endpoint corresponding to the selected network.
+    def get(self, key: str, default: Optional[Any] = None) -> Any:
+        """Retrieves a configuration value by key or fallback value."""
+        return self._config.get(key, default)
 
-        Returns:
-            The full URL path for the active node network.
+    def _deep_update(self, base_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> None:
+        """Recursively merges user configuration into base configuration."""
+        for key, value in update_dict.items():
+            if isinstance(value, dict) and key in base_dict and isinstance(base_dict[key], dict):
+                self._deep_update(base_dict[key], value)
+            else:
+                base_dict[key] = value
 
-        Raises:
-            ValueError: If the configured network is unsupported.
-        """
-        endpoint = self._endpoints.get(self.network)
-        if not endpoint:
-            raise ValueError(f"Unsupported crypto network: {self.network}")
-        return endpoint
-
-    def get_auth_headers(self) -> Dict[str, str]:
-        """Generate HTTP headers required for authenticating with the crypto API.
-
-        Returns:
-            A dictionary containing authorization and content-type headers.
-
-        Raises:
-            ValueError: If the API key environment variable is not configured.
-        """
-        if not self.api_key:
-            raise ValueError("CRYPTO_API_KEY environment variable is not set")
-        return {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
+    @property
+    def config(self) -> Dict[str, Any]:
+        """Returns current loaded configuration dictionary."""
+        return self._config
