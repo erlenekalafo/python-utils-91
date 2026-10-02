@@ -1,53 +1,34 @@
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-DEFAULT_CRYPTO_CONFIG: Dict[str, Any] = {
-    "exchange": "binance",
-    "base_currency": "USDT",
-    "api_timeout_seconds": 30,
-    "max_retries": 3,
-    "enable_websocket": True,
-    "rpc_nodes": {
-        "ethereum": "https://mainnet.infura.io/v3/your_key",
-        "polygon": "https://polygon-rpc.com",
-    },
-    "rate_limit_per_minute": 1200,
-}
+def load_crypto_config(file_path: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Loads configuration from a JSON file with provided fallback defaults.
+    Supports crypto-specific environment overrides for API keys.
+    """
+    config = defaults.copy()
 
-class ConfigLoader:
-    """Loads and manages crypto application configuration with default fallback values."""
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, 'r') as f:
+                user_config = json.load(f)
+                config.update(user_config)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Config loading failed: {e}. Using defaults.")
 
-    def __init__(self, config_path: Optional[str] = None) -> None:
-        self.config_path = config_path
-        self._config: Dict[str, Any] = DEFAULT_CRYPTO_CONFIG.copy()
-        if config_path:
-            self.load_from_file(config_path)
+    # Override with env vars for sensitive credentials
+    config['api_key'] = os.getenv('CRYPTO_API_KEY', config.get('api_key'))
+    config['network_mode'] = os.getenv('NETWORK_MODE', config.get('network_mode', 'mainnet'))
+    
+    return config
 
-    def load_from_file(self, filepath: str) -> Dict[str, Any]:
-        """Loads configuration from a JSON file and updates default settings."""
-        if os.path.exists(filepath):
-            try:
-                with open(filepath, "r", encoding="utf-8") as f:
-                    user_config = json.load(f)
-                    self._deep_update(self._config, user_config)
-            except (json.JSONDecodeError, IOError) as err:
-                raise RuntimeError(f"Failed to load config file {filepath}: {err}")
-        return self._config
-
-    def get(self, key: str, default: Optional[Any] = None) -> Any:
-        """Retrieves a configuration value by key or fallback value."""
-        return self._config.get(key, default)
-
-    def _deep_update(self, base_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> None:
-        """Recursively merges user configuration into base configuration."""
-        for key, value in update_dict.items():
-            if isinstance(value, dict) and key in base_dict and isinstance(base_dict[key], dict):
-                self._deep_update(base_dict[key], value)
-            else:
-                base_dict[key] = value
-
-    @property
-    def config(self) -> Dict[str, Any]:
-        """Returns current loaded configuration dictionary."""
-        return self._config
+if __name__ == '__main__':
+    default_cfg = {
+        'api_key': None,
+        'retries': 3,
+        'timeout': 30,
+        'network_mode': 'testnet'
+    }
+    settings = load_crypto_config('config.json', default_cfg)
+    print(f"Active config: {settings}")
