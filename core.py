@@ -1,50 +1,45 @@
-from typing import Dict, List, Optional, Tuple
+import hashlib
+import os
+from typing import Union
 
 
-class OrderBookAggregator:
-    """Optimized order book depth aggregator and VWAP calculator for streaming market data."""
+def generate_secure_salt(length: int = 16) -> bytes:
+    """Generate a cryptographically secure random salt."""
+    if length < 8:
+        raise ValueError("Salt length must be at least 8 bytes.")
+    return os.urandom(length)
 
-    def __init__(self, depth_limit: int = 50):
-        self.depth_limit = depth_limit
-        self._bids: Dict[float, float] = {}
-        self._asks: Dict[float, float] = {}
-        self._vwap_cache: Optional[Tuple[float, float]] = None
 
-    def update_levels(self, bids: List[Tuple[float, float]], asks: List[Tuple[float, float]]) -> None:
-        """Batch update bid and ask price levels with cache invalidation."""
-        for price, size in bids:
-            if size == 0:
-                self._bids.pop(price, None)
-            else:
-                self._bids[price] = size
+def hash_sha256(data: Union[str, bytes]) -> str:
+    """Compute the SHA-256 hash of the input data as a hex string."""
+    if isinstance(data, str):
+        data = data.encode('utf-8')
+    return hashlib.sha256(data).hexdigest()
 
-        for price, size in asks:
-            if size == 0:
-                self._asks.pop(price, None)
-            else:
-                self._asks[price] = size
 
-        self._vwap_cache = None
+def derive_key(password: str, salt: bytes, iterations: int = 100000, key_len: int = 32) -> bytes:
+    """Derive a cryptographic key using PBKDF2-HMAC-SHA256."""
+    if not password:
+        raise ValueError("Password cannot be empty.")
+    password_bytes = password.encode('utf-8')
+    return hashlib.pbkdf2_hmac('sha256', password_bytes, salt, iterations, dklen=key_len)
 
-    def get_top_depth(self) -> Dict[str, List[Tuple[float, float]]]:
-        """Returns sorted top bids and asks up to configured depth limit."""
-        sorted_bids = sorted(self._bids.items(), reverse=True)[:self.depth_limit]
-        sorted_asks = sorted(self._asks.items())[:self.depth_limit]
-        return {"bids": sorted_bids, "asks": sorted_asks}
 
-    def calculate_vwap(self) -> Tuple[float, float]:
-        """Fast calculation of bid and ask VWAP using memoized state."""
-        if self._vwap_cache is not None:
-            return self._vwap_cache
+def xor_bytes(b1: bytes, b2: bytes) -> bytes:
+    """Perform a bitwise XOR operation between two byte sequences."""
+    if len(b1) != len(b2):
+        raise ValueError("Byte sequences must be of equal length.")
+    return bytes(a ^ b for a, b in zip(b1, b2))
 
-        def _compute_side_vwap(levels: Dict[float, float]) -> float:
-            total_volume = sum(levels.values())
-            if total_volume == 0:
-                return 0.0
-            total_value = sum(p * v for p, v in levels.items())
-            return total_value / total_volume
 
-        bid_vwap = _compute_side_vwap(self._bids)
-        ask_vwap = _compute_side_vwap(self._asks)
-        self._vwap_cache = (bid_vwap, ask_vwap)
-        return self._vwap_cache
+def bytes_to_hex(data: bytes) -> str:
+    """Convert bytes to a clean lowercase hex string."""
+    return data.hex().lower()
+
+
+def hex_to_bytes(hex_str: str) -> bytes:
+    """Convert hex string to bytes, handling potential 0x prefix."""
+    clean_hex = hex_str.lower()
+    if clean_hex.startswith('0x'):
+        clean_hex = clean_hex[2:]
+    return bytes.fromhex(clean_hex)
