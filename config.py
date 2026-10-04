@@ -1,30 +1,30 @@
 import os
-from typing import Dict, Any, Optional
+import json
+from typing import Any, Dict
 
-class CryptoConfig:
-    """Configuration manager for cryptographic parameters."""
+DEFAULT_CONFIG = {
+    "rpc_url": "https://mainnet.infura.io/v3/",
+    "timeout": 30,
+    "retries": 3,
+    "api_key": None
+}
 
-    def __init__(self, env: str = "production") -> None:
-        self.env: str = env
-        self.settings: Dict[str, Any] = {
-            "key_size": 2048,
-            "algorithm": "RSA",
-            "padding": "OAEP"
-        }
+def load_config(config_path: str = "config.json") -> Dict[str, Any]:
+    """Loads crypto node configuration with sensible defaults."""
+    config = DEFAULT_CONFIG.copy()
+    
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                user_config = json.load(f)
+                config.update(user_config)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Warning: Failed to load {config_path}: {e}")
+            
+    return config
 
-    def get_setting(self, key: str, default: Optional[Any] = None) -> Any:
-        """Retrieve a specific setting with a fallback."""
-        return self.settings.get(key, default)
-
-    def update_settings(self, new_settings: Dict[str, Any]) -> None:
-        """Update existing configuration with a dictionary."""
-        self.settings.update(new_settings)
-
-    @property
-    def is_production(self) -> bool:
-        """Check if current environment is production."""
-        return self.env == "production"
-
-    def __repr__(self) -> str:
-        """Return string representation of configuration."""
-        return f"CryptoConfig(env={self.env}, settings={self.settings})"
+def get_required_key(config: Dict[str, Any], key: str) -> Any:
+    """Validates existence of critical crypto configuration keys."""
+    if key not in config or config[key] is None:
+        raise ValueError(f"Missing required configuration: {key}")
+    return config[key]
