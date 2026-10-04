@@ -1,33 +1,35 @@
 import logging
-import logging.handlers
 import os
+from logging.handlers import RotatingFileHandler
 
-def setup_logger(name: str = "crypto_app", log_file: str = "app.log") -> logging.Logger:
-    """Configures a rotating file logger for cryptographic operations."""
+def setup_crypto_logger(name: str, log_file: str = "crypto_ops.log") -> logging.Logger:
+    """Configures a rotating file logger for crypto operations."""
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
 
-    # Prevent duplicate handlers if function is called multiple times
+    # Prevent duplicate handlers if function called multiple times
     if not logger.handlers:
-        # Rotate logs daily, keeping 7 days of history
-        handler = logging.handlers.TimedRotatingFileHandler(
-            log_file,
-            when="midnight",
-            interval=1,
-            backupCount=7,
-            encoding="utf-8"
+        # 5MB per file, keep 3 backups
+        handler = RotatingFileHandler(
+            log_file, 
+            maxBytes=5 * 1024 * 1024, 
+            backupCount=3
         )
-
+        
         formatter = logging.Formatter(
-            "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
-
-        # Add console output for development visibility
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+        
+        # Optional: log to console as well
+        console = logging.StreamHandler()
+        console.setFormatter(formatter)
+        logger.addHandler(console)
 
     return logger
+
+# Example usage for crypto modules
+if __name__ == "__main__":
+    crypto_logger = setup_crypto_logger("crypto_utils")
+    crypto_logger.info("Logger initialized for blockchain validation")
