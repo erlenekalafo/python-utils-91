@@ -1,23 +1,29 @@
 import hashlib
 import hmac
-from typing import Dict, Any
+import base64
+from typing import Any, Dict
 
-def generate_signature(api_secret: str, payload: str) -> str:
-    """Generates HMAC-SHA256 signature for crypto API requests."""
+def generate_signature(api_secret: str, message: str) -> str:
+    """Generates an HMAC-SHA256 signature for API authentication."""
     return hmac.new(
         api_secret.encode('utf-8'),
-        payload.encode('utf-8'),
+        message.encode('utf-8'),
         hashlib.sha256
     ).hexdigest()
 
-def sanitize_order_data(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Removes null values and ensures proper types for trading payloads."""
-    return {k: v for k, v in data.items() if v is not None}
+def truncate_address(address: str, length: int = 6) -> str:
+    """Shortens a crypto address for display purposes."""
+    if len(address) <= length * 2:
+        return address
+    return f"{address[:length]}...{address[-length:]}"
 
-def format_crypto_amount(amount: float, precision: int = 8) -> str:
-    """Formats float amounts to fixed precision strings."""
-    return f"{amount:.{precision}f}".rstrip('0').rstrip('.')
+def normalize_amount(amount: Any, decimals: int = 8) -> float:
+    """Converts raw crypto balances to human-readable float format."""
+    try:
+        return round(float(amount) / (10**decimals), decimals)
+    except (TypeError, ValueError):
+        return 0.0
 
-def validate_ticker_format(ticker: str) -> bool:
-    """Checks if ticker follows standard BTC-USDT naming convention."""
-    return '-' in ticker and ticker.isupper()
+def validate_payload_keys(payload: Dict, required_keys: list) -> bool:
+    """Ensures all mandatory fields exist in API payloads."""
+    return all(key in payload for key in required_keys)
