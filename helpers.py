@@ -1,29 +1,28 @@
-import hashlib
-import hmac
-import base64
-from typing import Any, Dict
+import time
+import functools
+import logging
+from typing import Callable, Any
 
-def generate_signature(api_secret: str, message: str) -> str:
-    """Generates an HMAC-SHA256 signature for API authentication."""
-    return hmac.new(
-        api_secret.encode('utf-8'),
-        message.encode('utf-8'),
-        hashlib.sha256
-    ).hexdigest()
+logger = logging.getLogger(__name__)
 
-def truncate_address(address: str, length: int = 6) -> str:
-    """Shortens a crypto address for display purposes."""
-    if len(address) <= length * 2:
-        return address
-    return f"{address[:length]}...{address[-length:]}"
-
-def normalize_amount(amount: Any, decimals: int = 8) -> float:
-    """Converts raw crypto balances to human-readable float format."""
-    try:
-        return round(float(amount) / (10**decimals), decimals)
-    except (TypeError, ValueError):
-        return 0.0
-
-def validate_payload_keys(payload: Dict, required_keys: list) -> bool:
-    """Ensures all mandatory fields exist in API payloads."""
-    return all(key in payload for key in required_keys)
+def retry_network_op(retries: int = 3, delay: float = 1.0, backoff: float = 2.0):
+    """Decorator for retrying unstable network operations with exponential backoff."""
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            current_delay = delay
+            last_exception = None
+            
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError, OSError) as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+            
+            logger.error(f"Operation failed after {retries} attempts.")
+            raise last_exception
+        return wrapper
+    return decorator
