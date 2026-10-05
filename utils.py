@@ -1,29 +1,28 @@
 import time
+import functools
 import logging
-from functools import wraps
 from typing import Callable, Any
 
-logger = logging.getLogger('python-utils-91')
+logger = logging.getLogger(__name__)
 
-def with_retry(max_attempts: int = 3, delay: float = 1.0):
-    """Decorator for retrying network operations on failure."""
+def with_retry(max_attempts: int = 3, delay: float = 1.0, backoff: float = 2.0):
+    """Decorator for retrying network operations with exponential backoff."""
     def decorator(func: Callable):
-        @wraps(func)
+        @functools.wraps(func)
         def wrapper(*args, **kwargs) -> Any:
-            last_exception = None
-            for attempt in range(1, max_attempts + 1):
+            attempts = 0
+            current_delay = delay
+            while attempts < max_attempts:
                 try:
                     return func(*args, **kwargs)
-                except Exception as e:
-                    last_exception = e
-                    logger.warning(
-                        f"Attempt {attempt} failed for {func.__name__}: {e}. "
-                        f"Retrying in {delay}s..."
-                    )
-                    if attempt < max_attempts:
-                        time.sleep(delay)
-            
-            logger.error(f"All {max_attempts} attempts failed for {func.__name__}.")
-            raise last_exception
+                except (ConnectionError, TimeoutError) as e:
+                    attempts += 1
+                    if attempts == max_attempts:
+                        logger.error(f"Final attempt failed for {func.__name__}: {e}")
+                        raise
+                    
+                    logger.warning(f"Retry {attempts}/{max_attempts} for {func.__name__} due to {e}")
+                    time.sleep(current_delay)
+                    current_delay *= backoff
         return wrapper
     return decorator
