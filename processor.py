@@ -1,31 +1,56 @@
-import hashlib
-import hmac
-import base64
-import json
+import logging
+import re
+from typing import Dict, List, Any
 
-def generate_signature(api_secret: str, message: str) -> str:
-    """Creates an HMAC-SHA256 signature for API requests."""
-    return hmac.new(
-        api_secret.encode('utf-8'),
-        message.encode('utf-8'),
-        hashlib.sha256
-    ).hexdigest()
+logger = logging.getLogger(__name__)
 
-def encode_payload(data: dict) -> str:
-    """Serializes dictionary to a base64 encoded JSON string."""
-    json_str = json.dumps(data, sort_keys=True)
-    return base64.b64encode(json_str.encode('utf-8')).decode('utf-8')
+ADDRESS_REGEX = re.compile(r"^0x[a-fA-F0-9]{40}$")
 
-def decode_payload(encoded_str: str) -> dict:
-    """Decodes a base64 string back into a dictionary."""
-    decoded = base64.b64decode(encoded_str.encode('utf-8'))
-    return json.loads(decoded.decode('utf-8'))
 
-def validate_checksum(data: str, checksum: str) -> bool:
-    """Verifies data integrity using SHA256 hashing."""
-    calculated = hashlib.sha256(data.encode('utf-8')).hexdigest()
-    return hmac.compare_digest(calculated, checksum)
+class TransactionProcessor:
+    """Processes incoming crypto transactions with input validation."""
 
-def format_crypto_amount(amount: float, precision: int = 8) -> str:
-    """Formats float values to fixed-precision strings."""
-    return f"{amount:.{precision}f}".rstrip('0').rstrip('.')
+    def __init__(self, min_fee_gwei: float = 1.0):
+        self.min_fee_gwei = min_fee_gwei
+        self.processed_tx_hashes = set()
+
+    def _is_valid_payload(self, tx: Dict[str, Any]) -> bool:
+        """Validates payload fields and data types for a single transaction."""
+        required_fields = {"tx_hash", "sender", "recipient", "amount", "fee_gwei"}
+        if not isinstance(tx, dict) or not required_fields.issubset(tx.keys()):
+            logger.warning("Transaction payload missing required keys")
+            return False
+
+        if not ADDRESS_REGEX.match(tx["sender"]) or not ADDRESS_REGEX.match(tx["recipient"]):
+            logger.warning(f"Invalid address format in tx {tx.get('tx_hash')}")
+            return False
+
+        if not isinstance(tx["amount"], (int, float)) or tx["amount"] <= 0:
+            logger.warning(f"Invalid transfer amount: {tx.get('amount')}")
+            return False
+
+        if not isinstance(tx["fee_gwei"], (int, float)) or tx["fee_gwei"] < self.min_fee_gwei:
+            logger.warning(f"Fee below minimum threshold: {tx.get('fee_gwei')}")
+            return False
+
+        return True
+
+    def process_queue(self, incoming_queue: List[Dict[str, Any]]) -> List[str]:
+        """Main loop validating and recording incoming crypto transactions."""
+        processed_batch = []
+
+        for raw_tx in incoming_queue:
+            if not self._is_valid_payload(raw_tx):
+                logger.error("Skipping invalid transaction payload")
+                continue
+
+            tx_hash = raw_tx["tx_hash"]
+            if tx_hash in self.processed_tx_hashes:
+                logger.info(f"Duplicate transaction skipped: {tx_hash}")
+                continue
+
+            self.processed_tx_hashes.add(tx_hash)
+            processed_batch.append(tx_hash)
+            logger.info(f"Successfully verified tx {tx_hash}")
+
+        return processed_batch
