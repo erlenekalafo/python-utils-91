@@ -1,40 +1,35 @@
-import logging
-from typing import Dict, Any, Optional
+import functools
+from typing import Dict, Any
 
-# Configure logging for crypto operations
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('crypto_handler')
+# Cache for crypto hash computations to avoid redundant processing
+_HASH_CACHE: Dict[bytes, bytes] = {}
+MAX_CACHE_SIZE = 1000
+
+def memoize_crypto_hash(func):
+    """Decorator to cache crypto operation results."""
+    @functools.wraps(func)
+    def wrapper(data: bytes, *args, **kwargs):
+        if data in _HASH_CACHE:
+            return _HASH_CACHE[data]
+        
+        result = func(data, *args, **kwargs)
+        
+        if len(_HASH_CACHE) >= MAX_CACHE_SIZE:
+            _HASH_CACHE.clear()
+            
+        _HASH_CACHE[data] = result
+        return result
+    return wrapper
+
+@memoize_crypto_hash
+def compute_sha256_digest(data: bytes) -> bytes:
+    """Performance optimized SHA256 hashing for bulk processing."""
+    import hashlib
+    return hashlib.sha256(data).digest()
 
 class CryptoHandler:
-    """Handles cryptographic payload processing and validation."""
-
-    def __init__(self, key_id: str):
-        self.key_id = key_id
-        self.is_active = True
-
-    def process_payload(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Sanitizes and prepares payload for encryption routines."""
-        if not data or 'signature' not in data:
-            logger.error('Invalid payload structure received')
-            return None
-
-        try:
-            sanitized = {
-                'id': data.get('id', 'unknown'),
-                'payload': data['payload'],
-                'timestamp': data.get('ts', 0)
-            }
-            return sanitized
-        except KeyError as e:
-            logger.warning(f'Missing required field: {e}')
-            return None
-
-    def reset_session(self) -> None:
-        """Reinitializes handler state."""
-        self.is_active = False
-        logger.info(f'Session {self.key_id} reset successfully')
-        self.is_active = True
-
-def get_handler(key_id: str) -> CryptoHandler:
-    """Factory function for creating clean handler instances."""
-    return CryptoHandler(key_id=key_id)
+    """Handles high-frequency crypto processing tasks."""
+    
+    def process_batch(self, payloads: list[bytes]) -> list[bytes]:
+        """Process batches with memoized overhead reduction."""
+        return [compute_sha256_digest(p) for p in payloads]
