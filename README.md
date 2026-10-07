@@ -1,44 +1,50 @@
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 # python-utils-91
 
-A lightweight, high-performance Python utility suite designed to streamline blockchain interactions, wallet validation, and gas fee estimation across EVM-compatible networks. This library provides developers with highly optimized, production-ready cryptographic helpers to accelerate the development of decentralized applications, MEV bots, and Web3 integrations.
+`python-utils-91` is a robust toolkit designed to streamline interactions with cryptocurrency exchanges and blockchain data. It provides high-performance wrappers for market data retrieval, wallet balance monitoring, and secure signing operations.
 
 ## Features
 
-- **Multi-Chain Address Validation:** Out-of-the-box checksum validation for EVM, Solana, and Bitcoin (Bech32) addresses.
-- **Optimized Gas Estimation:** Fast, real-time gas fee suggestions leveraging public decentralized RPC endpoints.
-- **Ultra-Lightweight ABI Encoder:** Encode and decode smart contract transactions without importing heavy dependencies like `web3.py`.
-- **Mnemonic & Key Generation:** Secure, BIP-39 compliant seed phrase generation and private key derivation.
+*   **Exchange Aggregator:** Unified asynchronous client for fetching real-time order books and ticker data across multiple major CEX APIs.
+*   **Wallet Auditor:** Automated script to track ERC-20 token balances and detect suspicious outgoing transactions.
+*   **Secure Signing Module:** Lightweight helper functions for EIP-712 typed data signing using standard Python cryptographic libraries.
+*   **Rate-Limit Management:** Intelligent request queuing to handle exchange-specific API throttling without dropped connections.
 
 ## Installation
 
-Install the package directly from PyPI:
+Ensure you have Python 3.9+ installed. Install the package via pip:
 
 ```bash
 pip install python-utils-91
 ```
 
-## Quick Start
+For development dependencies, clone the repository and run:
 
-Validate an Ethereum address and fetch real-time optimal gas prices with just a few lines of code:
+```bash
+git clone https://github.com/Developer/python-utils-91.git
+cd python-utils-91
+pip install -r requirements.txt
+```
+
+## Basic Usage
+
+Quickly fetch the latest ticker price for a trading pair from supported exchanges:
 
 ```python
-from python_utils_91 import EVMAddress, GasEstimator
+from crypto_utils import ExchangeClient
 
-# Validate Ethereum checksum address
-address = "0x71C7656EC7ab88b098defB751B7401B5f6d1476B"
-if EVMAddress.is_valid(address):
-    print(f"Address {address} is valid.")
+# Initialize client for Binance
+client = ExchangeClient(exchange='binance')
 
-# Fetch optimal gas fees for Ethereum Mainnet
-estimator = GasEstimator(chain_id=1)
-gas_prices = estimator.get_suggested_fees()
+# Get BTC/USDT ticker
+price = client.get_ticker('BTC/USDT')
+print(f"Current BTC Price: {price['last']}")
 
-print(f"Standard Gas: {gas_prices.standard} Gwei")
-print(f"Fast Gas: {gas_prices.fast} Gwei")
+# Async fetch historical data
+history = await client.get_ohlcv('ETH/USDT', timeframe='1h')
 ```
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Distributed under the MIT License. See `LICENSE` for more information.
