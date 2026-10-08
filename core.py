@@ -1,29 +1,37 @@
-import hashlib
-import hmac
-import time
-from typing import Dict, Any
+import functools
+from typing import Callable, Any, Dict
+
+# Cache for crypto computation results
+_CACHE: Dict[tuple, Any] = {}
+
+def memoize_crypto(func: Callable) -> Callable:
+    """Decorator for caching intensive crypto calculations."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        key = (func.__name__, args, frozenset(kwargs.items()))
+        if key not in _CACHE:
+            _CACHE[key] = func(*args, **kwargs)
+        return _CACHE[key]
+    return wrapper
 
 class CryptoProcessor:
-    def __init__(self, secret: str):
-        self._secret = secret.encode('utf-8')
+    """Core processor with performance-focused operations."""
+    
+    def __init__(self, buffer_size: int = 1024):
+        self.buffer_size = buffer_size
 
-    def generate_signature(self, payload: str) -> str:
-        """Generates HMAC-SHA256 signature for API payloads."""
-        return hmac.new(
-            self._secret,
-            payload.encode('utf-8'),
-            hashlib.sha256
-        ).hexdigest()
+    @memoize_crypto
+    def compute_hash_sequence(self, data: bytes, iterations: int) -> bytes:
+        """Performance-optimized iterative hashing."""
+        import hashlib
+        result = data
+        for _ in range(iterations):
+            result = hashlib.sha256(result).digest()
+        return result
 
-    def verify_timestamp(self, timestamp: float, window: int = 30) -> bool:
-        """Checks if request timestamp is within tolerance window."""
-        return abs(time.time() - timestamp) <= window
+    def batch_process(self, items: list) -> list:
+        """Map processing over items using cached results."""
+        return [self.compute_hash_sequence(item, 1000) for item in items]
 
-    def sanitize_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Removes sensitive keys from dictionary objects."""
-        sensitive_keys = {'api_key', 'private_key', 'secret'}
-        return {k: v for k, v in data.items() if k not in sensitive_keys}
-
-    def format_request_body(self, data: Dict[str, Any]) -> str:
-        """Sorts and formats dictionary to string for signing."""
-        return '&'.join([f"{k}={v}" for k, v in sorted(data.items())])
+# Global processor instance for module access
+processor = CryptoProcessor()
