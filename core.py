@@ -1,45 +1,29 @@
 import hashlib
-import os
-from typing import Union
+import hmac
+import time
+from typing import Dict, Any
 
+class CryptoProcessor:
+    def __init__(self, secret: str):
+        self._secret = secret.encode('utf-8')
 
-def generate_secure_salt(length: int = 16) -> bytes:
-    """Generate a cryptographically secure random salt."""
-    if length < 8:
-        raise ValueError("Salt length must be at least 8 bytes.")
-    return os.urandom(length)
+    def generate_signature(self, payload: str) -> str:
+        """Generates HMAC-SHA256 signature for API payloads."""
+        return hmac.new(
+            self._secret,
+            payload.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
 
+    def verify_timestamp(self, timestamp: float, window: int = 30) -> bool:
+        """Checks if request timestamp is within tolerance window."""
+        return abs(time.time() - timestamp) <= window
 
-def hash_sha256(data: Union[str, bytes]) -> str:
-    """Compute the SHA-256 hash of the input data as a hex string."""
-    if isinstance(data, str):
-        data = data.encode('utf-8')
-    return hashlib.sha256(data).hexdigest()
+    def sanitize_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Removes sensitive keys from dictionary objects."""
+        sensitive_keys = {'api_key', 'private_key', 'secret'}
+        return {k: v for k, v in data.items() if k not in sensitive_keys}
 
-
-def derive_key(password: str, salt: bytes, iterations: int = 100000, key_len: int = 32) -> bytes:
-    """Derive a cryptographic key using PBKDF2-HMAC-SHA256."""
-    if not password:
-        raise ValueError("Password cannot be empty.")
-    password_bytes = password.encode('utf-8')
-    return hashlib.pbkdf2_hmac('sha256', password_bytes, salt, iterations, dklen=key_len)
-
-
-def xor_bytes(b1: bytes, b2: bytes) -> bytes:
-    """Perform a bitwise XOR operation between two byte sequences."""
-    if len(b1) != len(b2):
-        raise ValueError("Byte sequences must be of equal length.")
-    return bytes(a ^ b for a, b in zip(b1, b2))
-
-
-def bytes_to_hex(data: bytes) -> str:
-    """Convert bytes to a clean lowercase hex string."""
-    return data.hex().lower()
-
-
-def hex_to_bytes(hex_str: str) -> bytes:
-    """Convert hex string to bytes, handling potential 0x prefix."""
-    clean_hex = hex_str.lower()
-    if clean_hex.startswith('0x'):
-        clean_hex = clean_hex[2:]
-    return bytes.fromhex(clean_hex)
+    def format_request_body(self, data: Dict[str, Any]) -> str:
+        """Sorts and formats dictionary to string for signing."""
+        return '&'.join([f"{k}={v}" for k, v in sorted(data.items())])
