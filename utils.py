@@ -1,28 +1,36 @@
 import time
-import functools
-import logging
-from typing import Callable, Any
+import random
+from functools import wraps
+from typing import Callable, Type, Union, Tuple, Any
 
-logger = logging.getLogger(__name__)
-
-def retry_network_call(max_retries: int = 3, delay: float = 1.0, backoff: float = 2.0):
+def retry_on_failure(
+    retries: int = 3,
+    delay: float = 1.0,
+    backoff: float = 2.0,
+    exceptions: Union[Type[Exception], Tuple[Type[Exception], ...]] = Exception
+) -> Callable:
     """
-    Decorator for retrying network operations with exponential backoff.
+    Decorator to retry a network or API function with exponential backoff and jitter.
+    Useful for handling transient network drops or crypto API rate limiting.
     """
-    def decorator(func: Callable):
-        @functools.wraps(func)
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             current_delay = delay
-            for attempt in range(max_retries):
+            for attempt in range(1, retries + 1):
                 try:
                     return func(*args, **kwargs)
-                except Exception as e:
-                    if attempt == max_retries - 1:
-                        logger.error(f"Final attempt {attempt + 1} failed for {func.__name__}")
+                except exceptions as e:
+                    if attempt == retries:
                         raise e
                     
-                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
-                    time.sleep(current_delay)
+                    # Exponential backoff with light randomized jitter
+                    jitter = random.uniform(0, 0.1 * current_delay)
+                    sleep_time = current_delay + jitter
+                    
+                    print(f"[Retry Warning] Attempt {attempt}/{retries} failed due to {e.__class__.__name__}. Retrying in {sleep_time:.2f}s...")
+                    
+                    time.sleep(sleep_time)
                     current_delay *= backoff
             return None
         return wrapper
