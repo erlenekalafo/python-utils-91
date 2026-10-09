@@ -1,39 +1,35 @@
 import hashlib
-from typing import Sequence
+import hmac
+import secrets
 
-class CryptoHasher:
-    """Provides optimized cryptographic hashing helpers for blockchain data structures."""
-    
-    def __init__(self):
-        # Cache the empty hasher to bypass initialization overhead during copy operations
-        self._base_sha256 = hashlib.sha256()
 
-    def double_sha256(self, data: bytes) -> bytes:
-        """Compute double SHA-256 hash using hasher cloning for high throughput."""
-        h1 = self._base_sha256.copy()
-        h1.update(data)
-        h2 = self._base_sha256.copy()
-        h2.update(h1.digest())
-        return h2.digest()
+def generate_secure_salt(length: int = 16) -> str:
+    """Generates a cryptographically secure random hexadecimal salt."""
+    if length <= 0:
+        raise ValueError("Salt length must be a positive integer.")
+    return secrets.token_hex(length)
 
-    def compute_merkle_root(self, leaves: Sequence[bytes]) -> bytes:
-        """
-        Compute the Merkle root from a sequence of transaction hashes.
-        Optimized to reduce memory overhead and speed up execution.
-        """
-        if not leaves:
-            return b""
-        
-        # Local reference lookup optimization to speed up loop execution
-        d_sha256 = self.double_sha256
-        tree_level = list(leaves)
-        length = len(tree_level)
-        
-        while length > 1:
-            tree_level = [
-                d_sha256(tree_level[i] + (tree_level[i + 1] if i + 1 < length else tree_level[i]))
-                for i in range(0, length, 2)
-            ]
-            length = len(tree_level)
-            
-        return tree_level[0]
+
+def hash_payload(payload: str, salt: str = "") -> str:
+    """Hashes a payload with an optional salt using SHA-256."""
+    hasher = hashlib.sha256()
+    if salt:
+        hasher.update(salt.encode("utf-8"))
+    hasher.update(payload.encode("utf-8"))
+    return hasher.hexdigest()
+
+
+def generate_hmac(key: str, message: str) -> str:
+    """Generates an HMAC-SHA256 signature for a message using a secret key."""
+    if not key:
+        raise ValueError("HMAC key cannot be empty.")
+    key_bytes = key.encode("utf-8")
+    message_bytes = message.encode("utf-8")
+    return hmac.new(key_bytes, message_bytes, hashlib.sha256).hexdigest()
+
+
+def verify_hmac(key: str, message: str, signature: str) -> bool:
+    """Safely compares an HMAC-SHA256 signature to prevent timing attacks."""
+    expected_signature = generate_hmac(key, message)
+    # Use compare_digest to mitigate timing attacks
+    return hmac.compare_digest(expected_signature, signature)
