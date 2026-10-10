@@ -1,34 +1,34 @@
+import json
 import os
-from typing import Dict, Any
+from typing import Any, Dict
 
-class CryptoConfig:
-    """Configuration management for crypto operations."""
+DEFAULT_CONFIG = {
+    "rpc_url": "https://mainnet.infura.io/v3/",
+    "timeout": 30,
+    "retries": 3,
+    "debug": False
+}
+
+def load_config(filepath: str = "config.json") -> Dict[str, Any]:
+    """Loads configuration from disk with fallback defaults."""
+    config = DEFAULT_CONFIG.copy()
     
-    def __init__(self, env: str = "production") -> None:
-        self.env = env
-        self.settings: Dict[str, Any] = {
-            "production": {
-                "max_retries": 5,
-                "timeout": 30,
-                "fee_multiplier": 1.05
-            },
-            "development": {
-                "max_retries": 1,
-                "timeout": 10,
-                "fee_multiplier": 1.0
-            }
-        }
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, "r") as f:
+                user_config = json.load(f)
+                config.update(user_config)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Warning: Failed to load {filepath}: {e}. Using defaults.")
+    
+    return config
 
-    def get_setting(self, key: str) -> Any:
-        """Retrieve specific setting based on environment."""
-        return self.settings.get(self.env, {}).get(key)
-
-    @classmethod
-    def from_env(cls) -> 'CryptoConfig':
-        """Initialize config from system environment variables."""
-        env = os.getenv("APP_ENV", "production")
-        return cls(env)
-
-def get_default_config() -> CryptoConfig:
-    """Factory function for global config instance."""
-    return CryptoConfig.from_env()
+def get_network_settings() -> Dict[str, Any]:
+    """Helper to fetch validated network configuration."""
+    cfg = load_config()
+    # Ensure critical settings are present
+    return {
+        "url": cfg.get("rpc_url"),
+        "timeout": int(cfg.get("timeout", 30)),
+        "retries": int(cfg.get("retries", 3))
+    }
