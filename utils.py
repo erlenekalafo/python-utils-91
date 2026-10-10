@@ -1,36 +1,29 @@
 import time
-import random
-from functools import wraps
-from typing import Callable, Type, Union, Tuple, Any
+import functools
+import logging
 
-def retry_on_failure(
-    retries: int = 3,
-    delay: float = 1.0,
-    backoff: float = 2.0,
-    exceptions: Union[Type[Exception], Tuple[Type[Exception], ...]] = Exception
-) -> Callable:
+logger = logging.getLogger(__name__)
+
+def retry_network_op(retries=3, backoff=2.0, exceptions=(Exception,)):
     """
-    Decorator to retry a network or API function with exponential backoff and jitter.
-    Useful for handling transient network drops or crypto API rate limiting.
+    Decorator to retry network-bound operations with exponential backoff.
     """
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            current_delay = delay
-            for attempt in range(1, retries + 1):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            attempt = 0
+            current_delay = 1.0
+            while attempt < retries:
                 try:
                     return func(*args, **kwargs)
                 except exceptions as e:
-                    if attempt == retries:
-                        raise e
+                    attempt += 1
+                    if attempt >= retries:
+                        logger.error(f"Max retries reached for {func.__name__}: {e}")
+                        raise
                     
-                    # Exponential backoff with light randomized jitter
-                    jitter = random.uniform(0, 0.1 * current_delay)
-                    sleep_time = current_delay + jitter
-                    
-                    print(f"[Retry Warning] Attempt {attempt}/{retries} failed due to {e.__class__.__name__}. Retrying in {sleep_time:.2f}s...")
-                    
-                    time.sleep(sleep_time)
+                    logger.warning(f"Retrying {func.__name__} due to: {e}. Attempt {attempt}/{retries}")
+                    time.sleep(current_delay)
                     current_delay *= backoff
             return None
         return wrapper
