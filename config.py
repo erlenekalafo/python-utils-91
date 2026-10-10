@@ -1,30 +1,34 @@
 import os
-import json
-from typing import Any, Dict
+from typing import Dict, Any
 
-DEFAULT_CONFIG = {
-    "rpc_url": "https://mainnet.infura.io/v3/",
-    "timeout": 30,
-    "retries": 3,
-    "api_key": None
-}
-
-def load_config(config_path: str = "config.json") -> Dict[str, Any]:
-    """Loads crypto node configuration with sensible defaults."""
-    config = DEFAULT_CONFIG.copy()
+class CryptoConfig:
+    """Configuration management for crypto operations."""
     
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, "r") as f:
-                user_config = json.load(f)
-                config.update(user_config)
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"Warning: Failed to load {config_path}: {e}")
-            
-    return config
+    def __init__(self, env: str = "production") -> None:
+        self.env = env
+        self.settings: Dict[str, Any] = {
+            "production": {
+                "max_retries": 5,
+                "timeout": 30,
+                "fee_multiplier": 1.05
+            },
+            "development": {
+                "max_retries": 1,
+                "timeout": 10,
+                "fee_multiplier": 1.0
+            }
+        }
 
-def get_required_key(config: Dict[str, Any], key: str) -> Any:
-    """Validates existence of critical crypto configuration keys."""
-    if key not in config or config[key] is None:
-        raise ValueError(f"Missing required configuration: {key}")
-    return config[key]
+    def get_setting(self, key: str) -> Any:
+        """Retrieve specific setting based on environment."""
+        return self.settings.get(self.env, {}).get(key)
+
+    @classmethod
+    def from_env(cls) -> 'CryptoConfig':
+        """Initialize config from system environment variables."""
+        env = os.getenv("APP_ENV", "production")
+        return cls(env)
+
+def get_default_config() -> CryptoConfig:
+    """Factory function for global config instance."""
+    return CryptoConfig.from_env()
