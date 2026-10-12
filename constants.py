@@ -1,33 +1,27 @@
-from typing import Final, Dict
+from typing import Final, Dict, List
 
-# Network identifiers for crypto protocols
-MAINNET_ID: Final[int] = 1
-TESTNET_ID: Final[int] = 2
-
-# Standardized wallet address lengths
-ETH_ADDR_LEN: Final[int] = 42
-BTC_ADDR_LEN: Final[int] = 34
-
-# Transaction status definitions
-STATUS_PENDING: Final[str] = "pending"
-STATUS_CONFIRMED: Final[str] = "confirmed"
-STATUS_FAILED: Final[str] = "failed"
-
-# Default protocol settings
-DEFAULT_TIMEOUT: Final[float] = 30.0
-MAX_RETRIES: Final[int] = 3
-
-# Mapping for supported chain identifiers
-CHAIN_MAP: Final[Dict[str, int]] = {
-    "ethereum": MAINNET_ID,
-    "bitcoin": MAINNET_ID,
-    "sepolia": TESTNET_ID
+# Crypto network identifier mappings
+NETWORK_IDS: Final[Dict[str, int]] = {
+    "mainnet": 1,
+    "testnet": 3,
+    "sepolia": 11155111,
 }
 
-def get_chain_id(chain_name: str) -> int:
-    """Return the integer ID for a given blockchain name."""
-    return CHAIN_MAP.get(chain_name.lower(), -1)
+# Standard transaction fee limits in Gwei
+MAX_GAS_LIMIT: Final[int] = 2000000
+DEFAULT_GAS_PRICE: Final[float] = 20.0
 
-# Cryptographic operation constants
-HASH_ALGORITHM: Final[str] = "sha256"
-BLOCK_REWARD: Final[float] = 6.25
+# Supported cryptographic curves
+SUPPORTED_CURVES: Final[List[str]] = ["secp256k1", "ed25519"]
+
+# Protocol operational constants
+API_TIMEOUT_SECONDS: Final[int] = 30
+MAX_RETRIES: Final[int] = 3
+
+def get_network_id(name: str) -> int:
+    """Return the integer network ID for a given network name."""
+    return NETWORK_IDS.get(name.lower(), 0)
+
+def is_curve_supported(curve: str) -> bool:
+    """Check if the provided cryptographic curve is currently enabled."""
+    return curve in SUPPORTED_CURVES
