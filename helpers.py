@@ -1,66 +1,34 @@
-from decimal import Decimal
-from typing import Union
-import re
+import json
+import os
+from typing import Any, Dict
 
-
-def btc_to_satoshi(btc_amount: Union[int, float, str, Decimal]) -> int:
-    """Convert a Bitcoin amount to Satoshis.
-
-    Args:
-        btc_amount: The Bitcoin amount to convert.
-
-    Returns:
-        The equivalent amount in Satoshis.
-
-    Raises:
-        ValueError: If input cannot be converted to Decimal.
+def load_config(filepath: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
     """
+    Loads a JSON configuration file, merging it with provided default values.
+    Returns a dictionary with merged configuration or defaults if file missing.
+    """
+    config = defaults.copy()
+
+    if not os.path.exists(filepath):
+        return config
+
     try:
-        decimal_btc = Decimal(str(btc_amount))
-        return int(decimal_btc * Decimal("100000000"))
-    except Exception as e:
-        raise ValueError(f"Invalid BTC amount: {btc_amount}") from e
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                config.update(data)
+    except (json.JSONDecodeError, IOError):
+        pass
 
+    return config
 
-def satoshi_to_btc(satoshi_amount: int) -> Decimal:
-    """Convert a Satoshi amount to Bitcoin Decimal.
-
-    Args:
-        satoshi_amount: The integer number of Satoshis.
-
-    Returns:
-        The equivalent amount in Bitcoin as a Decimal.
+def validate_crypto_params(config: Dict[str, Any]) -> bool:
     """
-    if not isinstance(satoshi_amount, int):
-        raise TypeError("Satoshi amount must be an integer.")
-    return Decimal(satoshi_amount) / Decimal("100000000")
-
-
-def format_crypto_pair(base: str, quote: str) -> str:
-    """Format base and quote symbols into a standardized trading pair.
-
-    Args:
-        base: The base currency symbol (e.g., 'BTC').
-        quote: The quote currency symbol (e.g., 'USDT').
-
-    Returns:
-        A normalized trading pair string formatted as 'BASE/QUOTE'.
+    Ensures critical crypto configuration keys are present and valid.
     """
-    clean_base = base.strip().upper()
-    clean_quote = quote.strip().upper()
-    return f"{clean_base}/{clean_quote}"
+    required_keys = {'api_key', 'network_type', 'timeout'}
+    return all(key in config for key in required_keys)
 
-
-def is_valid_evm_address(address: str) -> bool:
-    """Verify if a string matches an Ethereum (EVM) address format.
-
-    Args:
-        address: The hexadecimal address string to validate.
-
-    Returns:
-        True if the address is a valid 42-character hex string.
-    """
-    if not isinstance(address, str):
-        return False
-    pattern = r"^0x[a-fA-F0-9]{40}$"
-    return bool(re.match(pattern, address))
+# Example Usage:
+# defaults = {'network_type': 'mainnet', 'timeout': 30}
+# cfg = load_config('config.json', defaults)
