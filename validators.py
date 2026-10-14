@@ -1,36 +1,40 @@
 import re
+from typing import Optional
 
-class CryptoValidator:
-    """Utility to validate crypto-specific input formats."""
+class ValidationError(Exception):
+    """Custom exception for crypto address validation issues."""
+    pass
 
-    @staticmethod
-    def is_valid_address(address: str) -> bool:
-        """Checks if string follows standard 0x hex address format."""
-        if not isinstance(address, str):
-            return False
-        pattern = r'^0x[a-fA-F0-9]{40}$'
-        return bool(re.match(pattern, address))
+def validate_crypto_address(address: str, chain_type: str = 'eth') -> bool:
+    """
+    Validates crypto addresses against pattern matching for supported chains.
+    Raises ValidationError on malformed input or unknown chains.
+    """
+    if not isinstance(address, str) or not address:
+        raise ValidationError("Address must be a non-empty string")
 
-    @staticmethod
-    def is_valid_amount(amount: str) -> bool:
-        """Checks if amount is a positive numeric string."""
-        try:
-            val = float(amount)
-            return val > 0
-        except (ValueError, TypeError):
-            return False
+    patterns = {
+        'eth': r'^0x[a-fA-F0-9]{40}$',
+        'btc': r'^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,59}$'
+    }
 
-def validate_transaction_data(data: dict) -> bool:
-    """Comprehensive validation for incoming processing tasks."""
-    required_fields = ['address', 'amount', 'currency']
-    
-    if not all(k in data for k in required_fields):
-        return False
-    
-    if not CryptoValidator.is_valid_address(data['address']):
-        return False
-        
-    if not CryptoValidator.is_valid_amount(data['amount']):
-        return False
-        
+    pattern = patterns.get(chain_type.lower())
+    if not pattern:
+        raise ValidationError(f"Unsupported chain type: {chain_type}")
+
+    if not re.match(pattern, address):
+        raise ValidationError(f"Invalid {chain_type} address format")
+
     return True
+
+def safe_format_amount(amount: float, precision: int = 8) -> str:
+    """
+    Safely formats float values to string with defined precision.
+    Handles edge cases like negative values or type mismatch.
+    """
+    try:
+        if amount < 0:
+            raise ValueError("Negative amount provided")
+        return f"{amount:.{precision}f}"
+    except (TypeError, ValueError) as e:
+        return f"0.{'0' * precision}"
