@@ -1,40 +1,58 @@
 import re
 from typing import Optional
 
-class ValidationError(Exception):
-    """Custom exception for crypto address validation issues."""
-    pass
 
-def validate_crypto_address(address: str, chain_type: str = 'eth') -> bool:
+def is_valid_eth_address(address: str) -> bool:
+    """Validate if a string is a properly formatted Ethereum address.
+
+    Args:
+        address: The string representation of the Ethereum address.
+
+    Returns:
+        True if valid hexadecimal string with 0x prefix and length 42, False otherwise.
     """
-    Validates crypto addresses against pattern matching for supported chains.
-    Raises ValidationError on malformed input or unknown chains.
+    if not isinstance(address, str):
+        return False
+    pattern = re.compile(r"^0x[a-fA-F0-9]{40}$")
+    return bool(pattern.match(address))
+
+
+def is_valid_btc_address(address: str) -> bool:
+    """Validate Legacy, SegWit, or Bech32 Bitcoin wallet address.
+
+    Args:
+        address: The string representation of the Bitcoin address.
+
+    Returns:
+        True if the address matches standard Bitcoin formats, False otherwise.
     """
-    if not isinstance(address, str) or not address:
-        raise ValidationError("Address must be a non-empty string")
+    if not isinstance(address, str):
+        return False
+    btc_pattern = re.compile(
+        r"^(1[a-km-zA-HJ-NP-Z1-9]{25,34}|3[a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[a-zA-HJ-NP-Z0-9]{8,87})$"
+    )
+    return bool(btc_pattern.match(address))
 
-    patterns = {
-        'eth': r'^0x[a-fA-F0-9]{40}$',
-        'btc': r'^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,59}$'
-    }
 
-    pattern = patterns.get(chain_type.lower())
-    if not pattern:
-        raise ValidationError(f"Unsupported chain type: {chain_type}")
+def validate_tx_hash(tx_hash: str, expected_length: Optional[int] = 64) -> bool:
+    """Verify that a transaction hash conforms to expected hex length.
 
-    if not re.match(pattern, address):
-        raise ValidationError(f"Invalid {chain_type} address format")
+    Args:
+        tx_hash: Transaction hash string, optional '0x' prefix permitted.
+        expected_length: Expected character count excluding '0x' prefix.
 
-    return True
-
-def safe_format_amount(amount: float, precision: int = 8) -> str:
+    Returns:
+        True if valid hex string matching expected length, False otherwise.
     """
-    Safely formats float values to string with defined precision.
-    Handles edge cases like negative values or type mismatch.
-    """
+    if not isinstance(tx_hash, str):
+        return False
+
+    clean_hash = tx_hash[2:] if tx_hash.startswith(("0x", "0X")) else tx_hash
+    if len(clean_hash) != expected_length:
+        return False
+
     try:
-        if amount < 0:
-            raise ValueError("Negative amount provided")
-        return f"{amount:.{precision}f}"
-    except (TypeError, ValueError) as e:
-        return f"0.{'0' * precision}"
+        int(clean_hash, 16)
+        return True
+    except ValueError:
+        return False
