@@ -1,25 +1,27 @@
-import hashlib
-import hmac
-import json
-from typing import Any, Dict
+import time
+import functools
+import logging
+from typing import Callable, Any, Type, Tuple
 
-def generate_signature(api_secret: str, message: str) -> str:
-    """Generates a HMAC-SHA256 signature for API requests."""
-    return hmac.new(
-        api_secret.encode('utf-8'),
-        message.encode('utf-8'),
-        hashlib.sha256
-    ).hexdigest()
+logger = logging.getLogger(__name__)
 
-def normalize_crypto_payload(data: Dict[str, Any]) -> str:
-    """Sorts keys and returns compact JSON string."""
-    return json.dumps(data, sort_keys=True, separators=(',', ':'))
-
-def validate_transaction_data(data: Dict[str, Any]) -> bool:
-    """Ensures crypto transaction dict has required keys."""
-    required = {'asset', 'amount', 'timestamp'}
-    return all(key in data for key in required)
-
-def format_wei_to_eth(wei: int) -> float:
-    """Conversion of wei units to ether units."""
-    return float(wei) / 10**18
+def retry_network_operation(exceptions: Tuple[Type[Exception], ...], 
+                            max_retries: int = 3, 
+                            delay: float = 1.0) -> Callable:
+    """Decorator for retrying network operations on specific exceptions."""
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            last_exception = None
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
+                    time.sleep(delay)
+            
+            logger.error(f"Operation failed after {max_retries} attempts")
+            raise last_exception
+        return wrapper
+    return decorator
