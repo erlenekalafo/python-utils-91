@@ -1,23 +1,23 @@
 # python-utils-91
 
-`python-utils-91` is a robust toolkit designed to streamline interactions with cryptocurrency exchanges and blockchain data. It provides high-performance wrappers for market data retrieval, wallet balance monitoring, and secure signing operations.
+A high-performance toolkit for crypto developers designed to streamline wallet management, block exploration, and transaction signing. This library provides lightweight abstractions to interact with EVM-compatible chains without the overhead of heavy full-node dependencies.
 
-## Features
+### Features
 
-*   **Exchange Aggregator:** Unified asynchronous client for fetching real-time order books and ticker data across multiple major CEX APIs.
-*   **Wallet Auditor:** Automated script to track ERC-20 token balances and detect suspicious outgoing transactions.
-*   **Secure Signing Module:** Lightweight helper functions for EIP-712 typed data signing using standard Python cryptographic libraries.
-*   **Rate-Limit Management:** Intelligent request queuing to handle exchange-specific API throttling without dropped connections.
+*   **Secure Key Handling:** Built-in utilities for BIP-39 mnemonic generation and deterministic private key derivation using industry-standard elliptic curve cryptography.
+*   **Gas Estimation Engine:** Real-time fee calculation logic that analyzes pending mempool traffic to optimize transaction speed and cost.
+*   **ABI Decoding:** Seamless translation of low-level contract interaction data into human-readable Python dictionaries.
+*   **Asynchronous RPC Requests:** Fully non-blocking WebSocket and HTTP providers for high-frequency data streaming and event listening.
 
-## Installation
+### Installation
 
-Ensure you have Python 3.9+ installed. Install the package via pip:
+Install the package via pip:
 
 ```bash
 pip install python-utils-91
 ```
 
-For development dependencies, clone the repository and run:
+For development builds, clone the repository and install the requirements:
 
 ```bash
 git clone https://github.com/Developer/python-utils-91.git
@@ -25,26 +25,23 @@ cd python-utils-91
 pip install -r requirements.txt
 ```
 
-## Basic Usage
+### Basic Usage
 
-Quickly fetch the latest ticker price for a trading pair from supported exchanges:
+Quickly fetch the current balance of an address on the Ethereum mainnet:
 
 ```python
-from crypto_utils import ExchangeClient
+from python_utils_91 import CryptoClient
 
-# Initialize client for Binance
-client = ExchangeClient(exchange='binance')
+# Initialize the client with an RPC endpoint
+client = CryptoClient(rpc_url="https://eth.llamarpc.com")
 
-# Get BTC/USDT ticker
-price = client.get_ticker('BTC/USDT')
-print(f"Current BTC Price: {price['last']}")
-
-# Async fetch historical data
-history = await client.get_ohlcv('ETH/USDT', timeframe='1h')
+# Retrieve balance in Wei
+balance = client.get_balance("0x742d35Cc6634C0532925a3b844Bc454e4438f44e")
+print(f"Address Balance: {client.to_ether(balance)} ETH")
 ```
 
-## License
+### License
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Distributed under the MIT License. See `LICENSE` for more information.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
