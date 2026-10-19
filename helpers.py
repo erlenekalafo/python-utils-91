@@ -1,28 +1,40 @@
-import time
-import functools
-import logging
-from typing import Callable, Any
+import hashlib
+import hmac
+from decimal import Decimal
+from typing import Union
 
-logger = logging.getLogger(__name__)
+# Unit conversion constants
+SATOSHI_PER_BTC = Decimal("100000000")
+WEI_PER_ETH = Decimal("1000000000000000000")
 
-def retry_on_failure(max_retries: int = 3, delay: float = 1.0):
-    """Decorator for retrying network operations on exception."""
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            last_exception = None
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    last_exception = e
-                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying...")
-                    time.sleep(delay * (2 ** attempt))
-            logger.error(f"Operation failed after {max_retries} attempts")
-            raise last_exception
-        return wrapper
-    return decorator
 
-def execute_with_retry(func: Callable, *args, **kwargs) -> Any:
-    """Utility for executing arbitrary callables with retry."""
-    return retry_on_failure()(func)(*args, **kwargs)
+def btc_to_satoshi(btc_amount: Union[int, float, str, Decimal]) -> int:
+    """Convert BTC amount to Satoshi integer."""
+    amount = Decimal(str(btc_amount))
+    return int(amount * SATOSHI_PER_BTC)
+
+
+def satoshi_to_btc(satoshi_amount: int) -> Decimal:
+    """Convert Satoshi integer to BTC Decimal."""
+    return Decimal(satoshi_amount) / SATOSHI_PER_BTC
+
+
+def eth_to_wei(eth_amount: Union[int, float, str, Decimal]) -> int:
+    """Convert ETH amount to Wei integer."""
+    amount = Decimal(str(eth_amount))
+    return int(amount * WEI_PER_ETH)
+
+
+def wei_to_eth(wei_amount: int) -> Decimal:
+    """Convert Wei integer to ETH Decimal."""
+    return Decimal(wei_amount) / WEI_PER_ETH
+
+
+def double_sha256(data: bytes) -> bytes:
+    """Compute double SHA-256 hash commonly used in Bitcoin."""
+    return hashlib.sha256(hashlib.sha256(data).digest()).digest()
+
+
+def generate_hmac_sha256(key: bytes, message: bytes) -> str:
+    """Generate hex-encoded HMAC-SHA256 signature for API requests."""
+    return hmac.new(key, message, hashlib.sha256).hexdigest()
