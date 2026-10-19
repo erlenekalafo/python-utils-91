@@ -1,54 +1,65 @@
-import time
-import logging
-import random
-from typing import Callable, Any, Type, Tuple
-
-logger = logging.getLogger(__name__)
-
-def retry_network_op(
-    max_retries: int = 3,
-    initial_delay: float = 1.0,
-    backoff_factor: float = 2.0,
-    jitter: bool = True,
-    retryable_exceptions: Tuple[Type[Exception], ...] = (Exception,)
-) -> Callable:
-    """
-    Decorator for retrying crypto API network operations with exponential backoff.
-    """
-    def decorator(func: Callable) -> Callable:
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            delay = initial_delay
-            for attempt in range(1, max_retries + 1):
-                try:
-                    return func(*args, **kwargs)
-                except retryable_exceptions as exc:
-                    if attempt == max_retries:
-                        logger.error(f"Operation {func.__name__} failed after {max_retries} attempts: {exc}")
-                        raise
-                    
-                    sleep_time = delay
-                    if jitter:
-                        sleep_time += random.uniform(0, 0.5)
-                    
-                    logger.warning(
-                        f"Attempt {attempt}/{max_retries} for {func.__name__} failed: {exc}. "
-                        f"Retrying in {sleep_time:.2f}s..."
-                    )
-                    time.sleep(sleep_time)
-                    delay *= backoff_factor
-        return wrapper
-    return decorator
+import re
+from typing import Dict, List, Any
 
 
-class CryptoDataProcessor:
-    """Processor for executing crypto exchange requests with retry resiliency."""
+class TransactionProcessor:
+    """Processes incoming cryptocurrency transaction payloads with strict validation."""
 
-    def __init__(self, retries: int = 3):
-        self.retries = retries
+    SUPPORTED_ASSETS = {"BTC", "ETH", "USDT", "SOL"}
+    ADDRESS_PATTERNS = {
+        "BTC": r"^(1|3|bc1)[a-zA-zA-HJ-NP-Z0-9]{25,62}$",
+        "ETH": r"^0x[a-fA-F0-9]{40}$",
+        "USDT": r"^0x[a-fA-F0-9]{40}$",
+        "SOL": r"^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+    }
 
-    @retry_network_op(max_retries=3, initial_delay=0.5, backoff_factor=2.0)
-    def fetch_order_book(self, symbol: str) -> dict:
-        """Fetch order book data from exchange endpoint with automatic retries."""
-        if random.random() < 0.3:
-            raise ConnectionError(f"Transient network failure for {symbol} order book endpoint")
-        return {"symbol": symbol, "bids": [[50000.0, 1.2]], "asks": [[50010.0, 0.8]]}
+    def validate_payload(self, raw_tx: Dict[str, Any]) -> tuple[bool, str]:
+        """Validate raw transaction fields before processing."""
+        if not isinstance(raw_tx, dict):
+            return False, "Payload must be a dictionary"
+
+        asset = raw_tx.get("asset")
+        if asset not in self.SUPPORTED_ASSETS:
+            return False, f"Unsupported or missing asset: {asset}"
+
+        amount = raw_tx.get("amount")
+        if not isinstance(amount, (int, float)) or amount <= 0:
+            return False, f"Invalid amount: {amount}. Must be positive number"
+
+        address = raw_tx.get("recipient")
+        if not address or not isinstance(address, str):
+            return False, "Missing or invalid recipient address format"
+
+        pattern = self.ADDRESS_PATTERNS.get(asset)
+        if pattern and not re.match(pattern, address):
+            return False, f"Recipient address format invalid for {asset}"
+
+        return True, "Valid"
+
+    def process_batch(self, batch: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Main processing loop with input validation for crypto payload batch."""
+        successful = []
+        failed = []
+
+        for index, raw_payload in enumerate(batch):
+            is_valid, reason = self.validate_payload(raw_payload)
+            if not is_valid:
+                failed.append({"index": index, "payload": raw_payload, "error": reason})
+                continue
+
+            tx_id = f"tx_{index}_{raw_payload['asset'].lower()}"
+            processed_record = {
+                "id": tx_id,
+                "asset": raw_payload["asset"],
+                "amount": float(raw_payload["amount"]),
+                "recipient": raw_payload["recipient"],
+                "status": "queued"
+            }
+            successful.append(processed_record)
+
+        return {
+            "processed_count": len(successful),
+            "failed_count": len(failed),
+            "successful": successful,
+            "failed": failed
+        }
