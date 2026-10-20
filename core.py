@@ -1,36 +1,38 @@
-import logging
-from typing import Any, Optional
+import functools
+import hashlib
+import time
+from typing import Callable, Any, Dict
 
-class CryptoOperationError(Exception):
-    """Custom exception for cryptographic processing failures."""
-    pass
+# Cache for compute-heavy cryptographic hashing operations
+_HASH_CACHE: Dict[tuple, bytes] = {}
 
-def secure_hash_processor(data: Any) -> Optional[str]:
-    """Processes input data with basic input validation and error handling."""
-    try:
-        if data is None:
-            raise ValueError("Input data cannot be None")
-        
-        if not isinstance(data, (str, bytes)):
-            raise TypeError(f"Unsupported data type: {type(data).__name__}")
+def memoize_hash(func: Callable) -> Callable:
+    """Decorator to cache expensive hash function results."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> bytes:
+        key = (args, tuple(sorted(kwargs.items())))
+        if key not in _HASH_CACHE:
+            _HASH_CACHE[key] = func(*args, **kwargs)
+        return _HASH_CACHE[key]
+    return wrapper
 
-        # Simulate crypto transformation
-        encoded_data = data.encode('utf-8') if isinstance(data, str) else data
-        if len(encoded_data) == 0:
-            raise ValueError("Empty data buffer provided")
-            
-        return encoded_data.hex()
+@memoize_hash
+def compute_sha256(data: bytes) -> bytes:
+    """Performance-optimized SHA-256 calculation with caching."""
+    return hashlib.sha256(data).digest()
 
-    except (ValueError, TypeError) as e:
-        logging.error(f"Data processing failed: {e}")
-        return None
-    except Exception as e:
-        logging.critical(f"Unexpected system failure: {e}")
-        raise CryptoOperationError("Critical failure during crypto operation") from e
+class CryptoProcessor:
+    """Core processor for crypto utility operations."""
+    def __init__(self, limit: int = 1000):
+        self.limit = limit
 
-if __name__ == "__main__":
-    # Example usage for verification
-    logging.basicConfig(level=logging.INFO)
-    result = secure_hash_processor("secret_payload")
-    if result:
-        print(f"Result: {result}")
+    def batch_process(self, datasets: list[bytes]) -> list[bytes]:
+        """Process batches with memoization to reduce CPU load."""
+        results = []
+        for data in datasets:
+            results.append(compute_sha256(data))
+        return results
+
+def clear_cache() -> None:
+    """Manual cache clearance to prevent memory leakage."""
+    _HASH_CACHE.clear()
