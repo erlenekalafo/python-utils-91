@@ -1,48 +1,45 @@
-import time
-import random
-import functools
-import logging
-from typing import Callable, Any, Tuple, Type
+import hashlib
+import hmac
+from typing import Dict, Any
 
-logger = logging.getLogger(__name__)
-
-class CryptoNetworkError(Exception):
-    """Raised when a crypto API or RPC network operation fails."""
-    pass
-
-def retry_network_op(
-    max_retries: int = 3,
-    initial_delay: float = 1.0,
-    backoff_factor: float = 2.0,
-    exceptions: Tuple[Type[Exception], ...] = (Exception,),
-) -> Callable:
+def generate_signature(secret: str, payload: str) -> str:
     """
-    Decorator to retry network operations with exponential backoff and jitter.
-    
-    Useful for resilient crypto exchange API calls and RPC queries.
+    Generates an HMAC-SHA256 signature for API requests.
+
+    Args:
+        secret: The shared secret key.
+        payload: The message body to sign.
+
+    Returns:
+        Hexadecimal representation of the HMAC signature.
     """
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            delay = initial_delay
-            for attempt in range(1, max_retries + 1):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as err:
-                    if attempt == max_retries:
-                        logger.error(
-                            f"Final retry attempt failed for {func.__name__}: {err}"
-                        )
-                        raise
-                    
-                    # Apply exponential backoff with full jitter
-                    sleep_time = delay * (0.5 + random.random())
-                    logger.warning(
-                        f"Network op {func.__name__} failed (attempt {attempt}/{max_retries}): "
-                        f"{err}. Retrying in {sleep_time:.2f}s..."
-                    )
-                    time.sleep(sleep_time)
-                    delay *= backoff_factor
-            return None
-        return wrapper
-    return decorator
+    return hmac.new(
+        secret.encode('utf-8'),
+        payload.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+
+def sanitize_order_params(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Filters out empty values from crypto order parameters.
+
+    Args:
+        params: Dictionary of raw order inputs.
+
+    Returns:
+        Cleaned dictionary with only non-empty entries.
+    """
+    return {k: v for k, v in params.items() if v is not None}
+
+def format_price(amount: float, precision: int = 8) -> str:
+    """
+    Formats crypto currency amounts to specific decimal precision.
+
+    Args:
+        amount: The numeric price value.
+        precision: Number of decimal places.
+
+    Returns:
+        Formatted string representation of the price.
+    """
+    return f"{amount:.{precision}f}"
