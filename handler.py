@@ -1,34 +1,34 @@
-import hashlib
-import hmac
 import json
-from typing import Any, Dict, Optional
+import logging
+from typing import Dict, Any, Optional
 
-def sign_payload(payload: Dict[str, Any], secret: str) -> str:
-    """Generates an HMAC-SHA256 signature for crypto payloads."""
-    message = json.dumps(payload, sort_keys=True).encode('utf-8')
-    signature = hmac.new(
-        secret.encode('utf-8'),
-        message,
-        hashlib.sha256
-    ).hexdigest()
-    return signature
+# Configure logger for crypto data transactions
+logger = logging.getLogger('python-utils-91')
 
-def validate_order_data(data: Dict[str, Any]) -> bool:
-    """Basic validation for crypto order dictionary structure."""
-    required_fields = {'symbol', 'side', 'quantity', 'price'}
-    return all(field in data for field in required_fields)
-
-def sanitize_crypto_amount(amount: Any) -> float:
-    """Converts various input formats to a float."""
+def normalize_crypto_payload(raw_data: str) -> Optional[Dict[str, Any]]:
+    """Parses and validates incoming raw crypto exchange data."""
     try:
-        return float(amount)
-    except (ValueError, TypeError):
-        return 0.0
+        data = json.loads(raw_data)
+        
+        # Basic schema verification for price updates
+        required_fields = {'pair', 'price', 'timestamp'}
+        if not all(field in data for field in required_fields):
+            logger.error(f"Invalid schema received: {data.keys()}")
+            return None
+            
+        return {
+            "pair": str(data['pair']).upper(),
+            "price": float(data['price']),
+            "timestamp": int(data['timestamp']),
+            "volume": float(data.get('volume', 0.0))
+        }
+    except (json.JSONDecodeError, ValueError, KeyError) as e:
+        logger.error(f"Data processing failure: {str(e)}")
+        return None
 
-def format_response(status: str, data: Optional[Dict] = None) -> Dict[str, Any]:
-    """Standardized response object for crypto operations."""
-    return {
-        "status": status,
-        "payload": data or {},
-        "version": "python-utils-91-1.0"
-    }
+def format_trade_event(event: Dict[str, Any]) -> str:
+    """Serializes processed data for downstream persistence."""
+    return json.dumps({
+        "type": "TRADE_UPDATE",
+        "payload": event
+    })
