@@ -1,38 +1,34 @@
-import functools
 import hashlib
+import hmac
 import time
-from typing import Callable, Any, Dict
+from typing import Optional
 
-# Cache for compute-heavy cryptographic hashing operations
-_HASH_CACHE: Dict[tuple, bytes] = {}
+class CryptoEngine:
+    def __init__(self, secret: str):
+        self.secret = secret.encode('utf-8')
 
-def memoize_hash(func: Callable) -> Callable:
-    """Decorator to cache expensive hash function results."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> bytes:
-        key = (args, tuple(sorted(kwargs.items())))
-        if key not in _HASH_CACHE:
-            _HASH_CACHE[key] = func(*args, **kwargs)
-        return _HASH_CACHE[key]
-    return wrapper
+    def generate_signature(self, payload: str) -> str:
+        """Generate HMAC-SHA256 signature for API payloads."""
+        return hmac.new(
+            self.secret,
+            payload.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
 
-@memoize_hash
-def compute_sha256(data: bytes) -> bytes:
-    """Performance-optimized SHA-256 calculation with caching."""
-    return hashlib.sha256(data).digest()
+    def verify_timestamp(self, timestamp: float, window: int = 5) -> bool:
+        """Verify request timestamp within a specific window."""
+        return abs(time.time() - timestamp) <= window
 
-class CryptoProcessor:
-    """Core processor for crypto utility operations."""
-    def __init__(self, limit: int = 1000):
-        self.limit = limit
+    def hash_data(self, data: str) -> str:
+        """Return SHA-256 hex digest of provided string."""
+        return hashlib.sha256(data.encode('utf-8')).hexdigest()
 
-    def batch_process(self, datasets: list[bytes]) -> list[bytes]:
-        """Process batches with memoization to reduce CPU load."""
-        results = []
-        for data in datasets:
-            results.append(compute_sha256(data))
-        return results
+class SecurityManager:
+    @staticmethod
+    def sanitize_input(data: str) -> str:
+        """Remove potential injection artifacts from input."""
+        return data.strip().replace(';', '').replace('--', '')
 
-def clear_cache() -> None:
-    """Manual cache clearance to prevent memory leakage."""
-    _HASH_CACHE.clear()
+if __name__ == '__main__':
+    engine = CryptoEngine(secret='dev_key_91')
+    sig = engine.generate_signature('data_packet')
