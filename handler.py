@@ -1,34 +1,39 @@
-import json
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 
-# Configure logger for crypto data transactions
-logger = logging.getLogger('python-utils-91')
+# Crypto processing error handling module
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('crypto-handler')
 
-def normalize_crypto_payload(raw_data: str) -> Optional[Dict[str, Any]]:
-    """Parses and validates incoming raw crypto exchange data."""
+class CryptoProcessError(Exception):
+    """Custom exception for crypto operation failures."""
+    pass
+
+def safe_execute(operation: callable, *args: Any, **kwargs: Any) -> Optional[Any]:
+    """Executes crypto operations with robust edge case handling."""
     try:
-        data = json.loads(raw_data)
+        if not callable(operation):
+            raise ValueError("Provided operation is not callable")
         
-        # Basic schema verification for price updates
-        required_fields = {'pair', 'price', 'timestamp'}
-        if not all(field in data for field in required_fields):
-            logger.error(f"Invalid schema received: {data.keys()}")
-            return None
-            
-        return {
-            "pair": str(data['pair']).upper(),
-            "price": float(data['price']),
-            "timestamp": int(data['timestamp']),
-            "volume": float(data.get('volume', 0.0))
-        }
-    except (json.JSONDecodeError, ValueError, KeyError) as e:
-        logger.error(f"Data processing failure: {str(e)}")
+        return operation(*args, **kwargs)
+        
+    except (ValueError, TypeError, ZeroDivisionError) as e:
+        logger.error(f"Data validation failure: {e}")
+        return None
+        
+    except ConnectionError as e:
+        logger.critical(f"Network infrastructure failure: {e}")
+        raise CryptoProcessError("Network unreachable during crypto transaction") from e
+        
+    except Exception as e:
+        logger.exception(f"Unexpected system anomaly: {e}")
         return None
 
-def format_trade_event(event: Dict[str, Any]) -> str:
-    """Serializes processed data for downstream persistence."""
-    return json.dumps({
-        "type": "TRADE_UPDATE",
-        "payload": event
-    })
+def validate_payload(data: Any) -> bool:
+    """Validates input structure for crypto transactions."""
+    if data is None:
+        return False
+    if not isinstance(data, dict) or 'amount' not in data:
+        logger.warning("Malformed crypto payload received")
+        return False
+    return True
