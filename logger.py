@@ -1,35 +1,34 @@
 import logging
-import os
 from logging.handlers import RotatingFileHandler
+import os
 
-def setup_logger(name: str, log_file: str = "crypto_ops.log", level: int = logging.INFO) -> logging.Logger:
-    """Configures a rotating file logger for crypto operations."""
+def setup_logger(name: str, log_file: str = 'crypto_bot.log') -> logging.Logger:
+    """
+    Configures a rotating file logger for crypto operations.
+    Max file size: 5MB, keep 5 backups.
+    """
     logger = logging.getLogger(name)
-    logger.setLevel(level)
+    logger.setLevel(logging.INFO)
 
-    # Ensure logs directory exists
-    log_dir = os.path.dirname(log_file)
-    if log_dir and not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-
-    # 5MB per file, keep 3 backups
-    handler = RotatingFileHandler(
-        log_file, 
-        maxBytes=5 * 1024 * 1024, 
-        backupCount=3
-    )
-    
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    handler.setFormatter(formatter)
-    
     # Prevent duplicate handlers if logger is re-initialized
     if not logger.handlers:
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+
+        # Rotate logs: 5MB per file, store 5 files
+        handler = RotatingFileHandler(
+            log_file, 
+            maxBytes=5 * 1024 * 1024, 
+            backupCount=5
+        )
+        handler.setFormatter(formatter)
+        
         logger.addHandler(handler)
         
-    return logger
+        # Optional: log to console as well
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
 
-if __name__ == "__main__":
-    log = setup_logger("crypto_bot")
-    log.info("logger initialization complete")
+    return logger
