@@ -1,39 +1,29 @@
-import logging
-from typing import Any, Optional
+import hashlib
+import hmac
+import time
+from typing import Dict, Any
 
-# Crypto processing error handling module
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('crypto-handler')
+def generate_signature(api_secret: str, payload: str) -> str:
+    """Creates an HMAC-SHA256 signature for API authentication."""
+    return hmac.new(
+        api_secret.encode('utf-8'),
+        payload.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
 
-class CryptoProcessError(Exception):
-    """Custom exception for crypto operation failures."""
-    pass
+def normalize_crypto_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Standardizes incoming crypto price updates to common format."""
+    return {
+        "symbol": str(data.get("s", "")).upper(),
+        "price": float(data.get("p", 0.0)),
+        "quantity": float(data.get("q", 0.0)),
+        "timestamp": int(data.get("t", time.time() * 1000)),
+        "source": "exchange_v1"
+    }
 
-def safe_execute(operation: callable, *args: Any, **kwargs: Any) -> Optional[Any]:
-    """Executes crypto operations with robust edge case handling."""
+def validate_order_volume(volume: float, min_limit: float = 0.001) -> bool:
+    """Ensures trading volume meets minimum exchange requirements."""
     try:
-        if not callable(operation):
-            raise ValueError("Provided operation is not callable")
-        
-        return operation(*args, **kwargs)
-        
-    except (ValueError, TypeError, ZeroDivisionError) as e:
-        logger.error(f"Data validation failure: {e}")
-        return None
-        
-    except ConnectionError as e:
-        logger.critical(f"Network infrastructure failure: {e}")
-        raise CryptoProcessError("Network unreachable during crypto transaction") from e
-        
-    except Exception as e:
-        logger.exception(f"Unexpected system anomaly: {e}")
-        return None
-
-def validate_payload(data: Any) -> bool:
-    """Validates input structure for crypto transactions."""
-    if data is None:
+        return float(volume) >= min_limit
+    except (ValueError, TypeError):
         return False
-    if not isinstance(data, dict) or 'amount' not in data:
-        logger.warning("Malformed crypto payload received")
-        return False
-    return True
