@@ -1,34 +1,46 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+import sys
+from typing import Optional
 
-def setup_logger(name: str, log_file: str = 'crypto_bot.log') -> logging.Logger:
+def setup_crypto_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     """
-    Configures a rotating file logger for crypto operations.
-    Max file size: 5MB, keep 5 backups.
-    """
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    Configures a standard logger for crypto utility modules.
 
-    # Prevent duplicate handlers if logger is re-initialized
+    Args:
+        name: The name of the logger instance.
+        level: Logging severity level (default INFO).
+
+    Returns:
+        An initialized logging.Logger object.
+    """
+    logger: logging.Logger = logging.getLogger(name)
+    logger.setLevel(level)
+
+    formatter: logging.Formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+
+    handler: logging.StreamHandler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(formatter)
+
     if not logger.handlers:
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-
-        # Rotate logs: 5MB per file, store 5 files
-        handler = RotatingFileHandler(
-            log_file, 
-            maxBytes=5 * 1024 * 1024, 
-            backupCount=5
-        )
-        handler.setFormatter(formatter)
-        
         logger.addHandler(handler)
-        
-        # Optional: log to console as well
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
 
     return logger
+
+def log_trade_event(logger: logging.Logger, message: str, level: str = "info") -> None:
+    """
+    Standardized formatting for blockchain and trading event logs.
+
+    Args:
+        logger: Active logging instance.
+        message: The event description.
+        level: Severity level (info, warning, or error).
+    """
+    levels: dict = {
+        "info": logging.INFO,
+        "warning": logging.WARNING,
+        "error": logging.ERROR
+    }
+    log_level: int = levels.get(level.lower(), logging.INFO)
+    logger.log(log_level, f"[CRYPTO_TX] {message}")
