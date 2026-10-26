@@ -1,29 +1,31 @@
 import hashlib
 import hmac
-import time
-from typing import Dict, Any
+import base64
 
-def generate_signature(api_secret: str, payload: str) -> str:
-    """Creates an HMAC-SHA256 signature for API authentication."""
-    return hmac.new(
+def generate_signature(api_secret: str, message: str) -> str:
+    """Creates an HMAC-SHA256 signature for API requests."""
+    signature = hmac.new(
         api_secret.encode('utf-8'),
-        payload.encode('utf-8'),
+        message.encode('utf-8'),
         hashlib.sha256
     ).hexdigest()
+    return signature
 
-def normalize_crypto_data(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Standardizes incoming crypto price updates to common format."""
-    return {
-        "symbol": str(data.get("s", "")).upper(),
-        "price": float(data.get("p", 0.0)),
-        "quantity": float(data.get("q", 0.0)),
-        "timestamp": int(data.get("t", time.time() * 1000)),
-        "source": "exchange_v1"
-    }
+def mask_private_key(key: str) -> str:
+    """Truncates key for safe logging purposes."""
+    if len(key) <= 8:
+        return "****"
+    return f"{key[:4]}****{key[-4:]}"
 
-def validate_order_volume(volume: float, min_limit: float = 0.001) -> bool:
-    """Ensures trading volume meets minimum exchange requirements."""
-    try:
-        return float(volume) >= min_limit
-    except (ValueError, TypeError):
-        return False
+def format_crypto_amount(amount: float, precision: int = 8) -> str:
+    """Formats float values to strict crypto precision."""
+    format_str = f"{{:.{precision}f}}"
+    return format_str.format(amount).rstrip('0').rstrip('.')
+
+def decode_base64_payload(data: str) -> bytes:
+    """Decodes base64 strings commonly used in tx data."""
+    return base64.b64decode(data)
+
+def validate_checksum(address: str) -> bool:
+    """Simple check for empty or malformed address strings."""
+    return isinstance(address, str) and len(address) > 26 and len(address) < 45
