@@ -1,45 +1,42 @@
-import hashlib
-import hmac
-from typing import Dict, Any
+import logging
+from typing import Any, Optional
 
-def generate_signature(secret: str, payload: str) -> str:
-    """
-    Generates an HMAC-SHA256 signature for API requests.
+logger = logging.getLogger(__name__)
 
-    Args:
-        secret: The shared secret key.
-        payload: The message body to sign.
+class CryptoUtils:
+    @staticmethod
+    def validate_key_length(key: bytes, expected_length: int) -> bool:
+        """Verify cryptographic key matches required byte length."""
+        if not isinstance(key, (bytes, bytearray)):
+            logger.error("Invalid key type provided")
+            return False
+        return len(key) == expected_length
 
-    Returns:
-        Hexadecimal representation of the HMAC signature.
-    """
-    return hmac.new(
-        secret.encode('utf-8'),
-        payload.encode('utf-8'),
-        hashlib.sha256
-    ).hexdigest()
+    @staticmethod
+    def safe_hex_to_bytes(hex_str: str) -> Optional[bytes]:
+        """Convert hex string to bytes with recovery logic."""
+        try:
+            if not hex_str:
+                return None
+            return bytes.fromhex(hex_str)
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Malformed hex string: {e}")
+            return None
 
-def sanitize_order_params(params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Filters out empty values from crypto order parameters.
+    @staticmethod
+    def secure_truncate(data: bytes, limit: int) -> bytes:
+        """Truncate data safely without index errors."""
+        if limit < 0:
+            return b''
+        return data[:limit]
 
-    Args:
-        params: Dictionary of raw order inputs.
-
-    Returns:
-        Cleaned dictionary with only non-empty entries.
-    """
-    return {k: v for k, v in params.items() if v is not None}
-
-def format_price(amount: float, precision: int = 8) -> str:
-    """
-    Formats crypto currency amounts to specific decimal precision.
-
-    Args:
-        amount: The numeric price value.
-        precision: Number of decimal places.
-
-    Returns:
-        Formatted string representation of the price.
-    """
-    return f"{amount:.{precision}f}"
+    @staticmethod
+    def checksum_verify(data: bytes, expected: bytes) -> bool:
+        """Constant-time comparison for cryptographic integrity."""
+        if len(data) != len(expected):
+            return False
+        
+        result = 0
+        for x, y in zip(data, expected):
+            result |= x ^ y
+        return result == 0
