@@ -1,46 +1,33 @@
 import logging
-import sys
-from typing import Optional
+from logging.handlers import RotatingFileHandler
+import os
 
-def setup_crypto_logger(name: str, level: int = logging.INFO) -> logging.Logger:
-    """
-    Configures a standard logger for crypto utility modules.
+def setup_crypto_logger(name: str = 'crypto_processor', log_file: str = 'crypto.log'):
+    """Configures a rotating file logger for crypto operations."""
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
 
-    Args:
-        name: The name of the logger instance.
-        level: Logging severity level (default INFO).
-
-    Returns:
-        An initialized logging.Logger object.
-    """
-    logger: logging.Logger = logging.getLogger(name)
-    logger.setLevel(level)
-
-    formatter: logging.Formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-
-    handler: logging.StreamHandler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(formatter)
-
+    # Prevent duplicate handlers if re-initialized
     if not logger.handlers:
+        # 5MB rotation, keeps 3 backups
+        handler = RotatingFileHandler(
+            log_file, 
+            maxBytes=5*1024*1024, 
+            backupCount=3
+        )
+        
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        handler.setFormatter(formatter)
         logger.addHandler(handler)
+        
+        # Optional: console output for debugging
+        console = logging.StreamHandler()
+        console.setFormatter(formatter)
+        logger.addHandler(console)
 
     return logger
 
-def log_trade_event(logger: logging.Logger, message: str, level: str = "info") -> None:
-    """
-    Standardized formatting for blockchain and trading event logs.
-
-    Args:
-        logger: Active logging instance.
-        message: The event description.
-        level: Severity level (info, warning, or error).
-    """
-    levels: dict = {
-        "info": logging.INFO,
-        "warning": logging.WARNING,
-        "error": logging.ERROR
-    }
-    log_level: int = levels.get(level.lower(), logging.INFO)
-    logger.log(log_level, f"[CRYPTO_TX] {message}")
+# Usage instance for application core
+logger = setup_crypto_logger()
