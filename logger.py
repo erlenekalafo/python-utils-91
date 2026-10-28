@@ -1,35 +1,45 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+import re
+import sys
+from typing import Optional
 
-def setup_logger(name: str, log_file: str = 'crypto.log', level: int = logging.INFO):
-    """
-    Configures a rotating file logger for cryptographic operations.
-    """
+# Mask patterns for sensitive crypto data (e.g., private keys, API secrets)
+PRIVATE_KEY_PATTERN = re.compile(r'(0x)?[a-fA-F0-9]{64}')
+API_KEY_PATTERN = re.compile(r'(?i)(api[_-]?key|secret)["\\']?\s*[:=]\s*["\\']?([a-zA-Z0-9_\-]+)')
+
+class CryptoMaskingFormatter(logging.Formatter):
+    """Formatter that redacts private keys and secret tokens from log output."""
+    
+    def format(self, record: logging.LogRecord) -> str:
+        original_msg = super().format(record)
+        # Mask 64-character hex strings (potential private keys)
+        masked_msg = PRIVATE_KEY_PATTERN.sub('[REDACTED_PRIVATE_KEY]', original_msg)
+        # Mask API key values in log output
+        masked_msg = API_KEY_PATTERN.sub(r'\1: [REDACTED_SECRET]', masked_msg)
+        return masked_msg
+
+def get_crypto_logger(
+    name: str = "crypto_utils",
+    level: int = logging.INFO,
+    log_file: Optional[str] = None
+) -> logging.Logger:
+    """Configures and returns a specialized logger for crypto operations."""
     logger = logging.getLogger(name)
     logger.setLevel(level)
-
-    # Prevent duplicate handlers if re-initialized
+    
     if not logger.handlers:
-        # 5MB file rotation with 3 backup files
-        handler = RotatingFileHandler(
-            log_file, 
-            maxBytes=5*1024*1024, 
-            backupCount=3
+        formatter = CryptoMaskingFormatter(
+            fmt="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
         )
         
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
         
-        # Optional console output
-        console = logging.StreamHandler()
-        console.setFormatter(formatter)
-        logger.addHandler(console)
-
+        if log_file:
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+            
     return logger
-
-# Initialization for crypto modules
-crypto_logger = setup_logger('crypto_utils')
