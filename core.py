@@ -1,34 +1,42 @@
 import hashlib
-import hmac
-import time
-from typing import Optional
+from functools import lru_cache
+from typing import List, Sequence, Union
 
-class CryptoEngine:
-    def __init__(self, secret: str):
-        self.secret = secret.encode('utf-8')
 
-    def generate_signature(self, payload: str) -> str:
-        """Generate HMAC-SHA256 signature for API payloads."""
-        return hmac.new(
-            self.secret,
-            payload.encode('utf-8'),
-            hashlib.sha256
-        ).hexdigest()
+class FastCryptoEngine:
+    """Optimized crypto engine providing cached and batch hashing operations."""
 
-    def verify_timestamp(self, timestamp: float, window: int = 5) -> bool:
-        """Verify request timestamp within a specific window."""
-        return abs(time.time() - timestamp) <= window
+    def __init__(self, cache_size: int = 4096) -> None:
+        self.cache_size = cache_size
+        self._get_sha256 = lru_cache(maxsize=cache_size)(self._sha256_single)
 
-    def hash_data(self, data: str) -> str:
-        """Return SHA-256 hex digest of provided string."""
-        return hashlib.sha256(data.encode('utf-8')).hexdigest()
-
-class SecurityManager:
     @staticmethod
-    def sanitize_input(data: str) -> str:
-        """Remove potential injection artifacts from input."""
-        return data.strip().replace(';', '').replace('--', '')
+    def _sha256_single(data: bytes) -> bytes:
+        """Internal single message SHA-256 computation."""
+        return hashlib.sha256(data).digest()
 
-if __name__ == '__main__':
-    engine = CryptoEngine(secret='dev_key_91')
-    sig = engine.generate_signature('data_packet')
+    def hash_message(self, data: Union[str, bytes]) -> bytes:
+        """Compute SHA-256 hash using LRU cache for repeated payloads."""
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+        return self._get_sha256(data)
+
+    def batch_hash(self, items: Sequence[Union[str, bytes]]) -> List[bytes]:
+        """Process multiple items efficiently leveraging local method lookup."""
+        results: List[bytes] = []
+        append = results.append
+        hash_fn = self.hash_message
+
+        for item in items:
+            append(hash_fn(item))
+
+        return results
+
+    def double_sha256(self, data: Union[str, bytes]) -> bytes:
+        """Compute double SHA-256 hash used in Bitcoin protocol primitives."""
+        first_pass = self.hash_message(data)
+        return hashlib.sha256(first_pass).digest()
+
+    def clear_cache(self) -> None:
+        """Purge underlying hash cache."""
+        self._get_sha256.cache_clear()
