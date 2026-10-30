@@ -3,33 +3,37 @@ import os
 from typing import Any, Dict
 
 class ConfigLoader:
-    """Handles loading and merging of crypto service configurations."""
+    """Handles loading and merging crypto configuration files."""
     
     def __init__(self, default_config: Dict[str, Any]):
         self.config = default_config
 
     def load_from_file(self, filepath: str) -> None:
-        """Updates internal config with JSON values from disk."""
+        """Overrides defaults with values from a JSON file."""
         if not os.path.exists(filepath):
             return
-
-        with open(filepath, 'r') as f:
-            user_config = json.load(f)
-            self._deep_update(self.config, user_config)
-
-    def _deep_update(self, base: Dict[str, Any], update: Dict[str, Any]) -> None:
-        """Recursively merges update dict into base dict."""
-        for key, value in update.items():
-            if isinstance(value, dict) and key in base and isinstance(base[key], dict):
-                self._deep_update(base[key], value)
-            else:
-                base[key] = value
+            
+        try:
+            with open(filepath, 'r') as f:
+                user_config = json.load(f)
+                self.config.update(user_config)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Configuration error: {e}")
 
     def get(self, key: str, default: Any = None) -> Any:
-        """Retrieves value by key with optional fallback."""
+        """Retrieves config value by key."""
         return self.config.get(key, default)
 
-    @property
-    def all(self) -> Dict[str, Any]:
-        """Returns the current full configuration mapping."""
-        return self.config
+# Default crypto constants
+DEFAULT_SETTINGS = {
+    "rpc_url": "https://mainnet.infura.io/v3/",
+    "timeout": 30,
+    "retry_attempts": 3,
+    "log_level": "INFO"
+}
+
+def get_config(filepath: str = "config.json") -> ConfigLoader:
+    """Factory function for global configuration access."""
+    loader = ConfigLoader(DEFAULT_SETTINGS.copy())
+    loader.load_from_file(filepath)
+    return loader
