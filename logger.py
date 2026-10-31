@@ -1,45 +1,60 @@
-import logging
-import re
 import sys
+import logging
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 from typing import Optional
 
-# Mask patterns for sensitive crypto data (e.g., private keys, API secrets)
-PRIVATE_KEY_PATTERN = re.compile(r'(0x)?[a-fA-F0-9]{64}')
-API_KEY_PATTERN = re.compile(r'(?i)(api[_-]?key|secret)["\\']?\s*[:=]\s*["\\']?([a-zA-Z0-9_\-]+)')
 
-class CryptoMaskingFormatter(logging.Formatter):
-    """Formatter that redacts private keys and secret tokens from log output."""
-    
-    def format(self, record: logging.LogRecord) -> str:
-        original_msg = super().format(record)
-        # Mask 64-character hex strings (potential private keys)
-        masked_msg = PRIVATE_KEY_PATTERN.sub('[REDACTED_PRIVATE_KEY]', original_msg)
-        # Mask API key values in log output
-        masked_msg = API_KEY_PATTERN.sub(r'\1: [REDACTED_SECRET]', masked_msg)
-        return masked_msg
+class CryptoLogFormatter(logging.Formatter):
+    """Custom log formatter providing readable context for crypto operations."""
 
-def get_crypto_logger(
+    DEFAULT_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+
+    def __init__(self, fmt: Optional[str] = None):
+        super().__init__(fmt=fmt or self.DEFAULT_FORMAT, datefmt="%Y-%m-%d %H:%M:%S")
+
+
+def setup_crypto_logger(
     name: str = "crypto_utils",
+    log_file: str = "logs/crypto_bot.log",
+    max_bytes: int = 10 * 1024 * 1024,
+    backup_count: int = 5,
     level: int = logging.INFO,
-    log_file: Optional[str] = None
 ) -> logging.Logger:
-    """Configures and returns a specialized logger for crypto operations."""
+    """Configures a logger with standard stdout and rotating file handlers."""
     logger = logging.getLogger(name)
     logger.setLevel(level)
-    
-    if not logger.handlers:
-        formatter = CryptoMaskingFormatter(
-            fmt="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
+
+    # Prevent attaching duplicate handlers if re-initialized
+    if logger.handlers:
+        return logger
+
+    formatter = CryptoLogFormatter()
+
+    # Console stream handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(level)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    # Log file rotation handler
+    if log_file:
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+
+        file_handler = RotatingFileHandler(
+            filename=log_path,
+            maxBytes=max_bytes,
+            backupCount=backup_count,
+            encoding="utf-8",
         )
-        
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
-        
-        if log_file:
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setFormatter(formatter)
-            logger.addHandler(file_handler)
-            
+        file_handler.setLevel(level)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
     return logger
+
+
+def log_trade_event(logger: logging.Logger, symbol: str, side: str, price: float, amount: float) -> None:
+    """Helper to log trade execution details in a consistent format."""
+    logger.info(f"TRADE EXECUTION | {side.upper()} {amount:.4f} {symbol} @ {price:.8f}")
