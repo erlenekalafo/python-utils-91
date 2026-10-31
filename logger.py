@@ -1,60 +1,30 @@
-import sys
 import logging
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
-from typing import Optional
+import os
 
-
-class CryptoLogFormatter(logging.Formatter):
-    """Custom log formatter providing readable context for crypto operations."""
-
-    DEFAULT_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
-
-    def __init__(self, fmt: Optional[str] = None):
-        super().__init__(fmt=fmt or self.DEFAULT_FORMAT, datefmt="%Y-%m-%d %H:%M:%S")
-
-
-def setup_crypto_logger(
-    name: str = "crypto_utils",
-    log_file: str = "logs/crypto_bot.log",
-    max_bytes: int = 10 * 1024 * 1024,
-    backup_count: int = 5,
-    level: int = logging.INFO,
-) -> logging.Logger:
-    """Configures a logger with standard stdout and rotating file handlers."""
+def setup_logger(name: str, log_file: str = 'crypto_utils.log') -> logging.Logger:
+    """Initializes a rotating file logger for crypto operations."""
     logger = logging.getLogger(name)
-    logger.setLevel(level)
+    logger.setLevel(logging.INFO)
 
-    # Prevent attaching duplicate handlers if re-initialized
-    if logger.handlers:
-        return logger
+    # Ensure logs directory exists
+    log_dir = os.path.dirname(log_file)
+    if log_dir and not os.path.exists(log_dir):
+        os.makedirs(log_dir)
 
-    formatter = CryptoLogFormatter()
+    # 5MB per file, keep 3 backups
+    handler = RotatingFileHandler(
+        log_file, 
+        maxBytes=5 * 1024 * 1024, 
+        backupCount=3
+    )
 
-    # Console stream handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(level)
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-
-    # Log file rotation handler
-    if log_file:
-        log_path = Path(log_file)
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-
-        file_handler = RotatingFileHandler(
-            filename=log_path,
-            maxBytes=max_bytes,
-            backupCount=backup_count,
-            encoding="utf-8",
-        )
-        file_handler.setLevel(level)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    handler.setFormatter(formatter)
+    
+    if not logger.handlers:
+        logger.addHandler(handler)
+        
     return logger
-
-
-def log_trade_event(logger: logging.Logger, symbol: str, side: str, price: float, amount: float) -> None:
-    """Helper to log trade execution details in a consistent format."""
-    logger.info(f"TRADE EXECUTION | {side.upper()} {amount:.4f} {symbol} @ {price:.8f}")
