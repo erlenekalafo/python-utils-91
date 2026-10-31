@@ -1,39 +1,28 @@
-import json
 import os
-from typing import Any, Dict
+from typing import Dict, Any, Optional
 
-class ConfigLoader:
-    """Handles loading and merging crypto configuration files."""
-    
-    def __init__(self, default_config: Dict[str, Any]):
-        self.config = default_config
+class CryptoConfig:
+    """Configuration management for crypto operations."""
 
-    def load_from_file(self, filepath: str) -> None:
-        """Overrides defaults with values from a JSON file."""
-        if not os.path.exists(filepath):
-            return
-            
-        try:
-            with open(filepath, 'r') as f:
-                user_config = json.load(f)
-                self.config.update(user_config)
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"Configuration error: {e}")
+    def __init__(self, env: str = "prod") -> None:
+        self.env: str = env
+        self.settings: Dict[str, Any] = {
+            "key_size": 2048,
+            "algorithm": "RSA",
+            "padding": "OAEP"
+        }
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Retrieves config value by key."""
-        return self.config.get(key, default)
+    def get_setting(self, key: str) -> Optional[Any]:
+        """Retrieve specific setting value by key."""
+        return self.settings.get(key)
 
-# Default crypto constants
-DEFAULT_SETTINGS = {
-    "rpc_url": "https://mainnet.infura.io/v3/",
-    "timeout": 30,
-    "retry_attempts": 3,
-    "log_level": "INFO"
-}
+    def update_settings(self, new_settings: Dict[str, Any]) -> None:
+        """Update multiple settings via dictionary input."""
+        self.settings.update(new_settings)
 
-def get_config(filepath: str = "config.json") -> ConfigLoader:
-    """Factory function for global configuration access."""
-    loader = ConfigLoader(DEFAULT_SETTINGS.copy())
-    loader.load_from_file(filepath)
-    return loader
+def load_crypto_environment() -> Dict[str, str]:
+    """Load environment-specific variables from system."""
+    return {
+        "NODE_URL": os.getenv("CRYPTO_NODE", "https://api.mainnet.io"),
+        "API_KEY": os.getenv("CRYPTO_KEY", "default_key_val")
+    }
