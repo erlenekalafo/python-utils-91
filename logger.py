@@ -1,30 +1,28 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+import sys
+from datetime import datetime
 
-def setup_crypto_logger(name: str, log_file: str = "crypto_ops.log") -> logging.Logger:
-    """Configures a rotating file logger for crypto operations."""
+def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+    """Configures a standardized logger for crypto operations."""
     logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(level)
 
-    # Prevent duplicate handlers if re-initialized
     if not logger.handlers:
-        # 5MB rotation, keep 3 backup files
-        handler = RotatingFileHandler(
-            log_file, 
-            maxBytes=5 * 1024 * 1024, 
-            backupCount=3
-        )
-        
+        handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
         )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
-        # Add console output as well for local visibility
-        console = logging.StreamHandler()
-        console.setFormatter(formatter)
-        logger.addHandler(console)
-
     return logger
+
+def log_transaction(logger: logging.Logger, tx_hash: str, status: str, amount: float):
+    """Utility for standardized transaction audit logging."""
+    timestamp = datetime.utcnow().isoformat()
+    logger.info(f"[{timestamp}] TX: {tx_hash} | STATUS: {status} | AMT: {amount:.8f}")
+
+def log_error(logger: logging.Logger, operation: str, error: Exception):
+    """Formatted error reporting for crypto network failures."""
+    logger.error(f"Operation '{operation}' failed: {str(error)}", exc_info=True)
