@@ -1,37 +1,46 @@
-import re
+import hashlib
+import hmac
+from typing import Union
 
-# regex patterns for crypto address validation
-ETH_ADDR_PATTERN = re.compile(r'^0x[a-fA-F0-9]{40}$')
-BTC_ADDR_PATTERN = re.compile(r'^(1|3|bc1)[a-zA-Z0-9]{25,59}$')
+SATOSHIS_PER_BTC = 100_000_000
+GWEI_PER_ETH = 1_000_000_000
 
-def validate_crypto_input(data: dict) -> bool:
-    """Validates address and amount fields in incoming payloads."""
-    address = data.get("address", "")
-    amount = data.get("amount", 0)
 
-    # check if amount is a positive numeric type
-    if not isinstance(amount, (int, float)) or amount <= 0:
-        return False
+def btc_to_satoshi(btc_amount: Union[int, float]) -> int:
+    """Convert Bitcoin amount to Satoshis."""
+    if btc_amount < 0:
+        raise ValueError("Amount cannot be negative")
+    return int(round(btc_amount * SATOSHIS_PER_BTC))
 
-    # route validation based on expected asset type
-    asset = data.get("asset", "").upper()
-    if asset == "ETH":
-        return bool(ETH_ADDR_PATTERN.match(address))
-    elif asset == "BTC":
-        return bool(BTC_ADDR_PATTERN.match(address))
 
-    return False
+def satoshi_to_btc(satoshi_amount: int) -> float:
+    """Convert Satoshis to Bitcoin amount."""
+    if satoshi_amount < 0:
+        raise ValueError("Amount cannot be negative")
+    return satoshi_amount / SATOSHIS_PER_BTC
 
-def process_transaction_loop(queue):
-    """Main loop with input validation check."""
-    for tx in queue:
-        if not validate_crypto_input(tx):
-            print(f"Skipping invalid transaction: {tx.get('id')}")
-            continue
-        
-        # logic for processing validated transactions
-        execute_transfer(tx)
 
-def execute_transfer(tx):
-    """Mock execution function for validated items."""
-    print(f"Processing transaction {tx.get('id')} of {tx.get('amount')}")
+def eth_to_gwei(eth_amount: Union[int, float]) -> int:
+    """Convert Ether amount to Gwei."""
+    if eth_amount < 0:
+        raise ValueError("Amount cannot be negative")
+    return int(round(eth_amount * GWEI_PER_ETH))
+
+
+def truncate_address(address: str, prefix_len: int = 6, suffix_len: int = 4) -> str:
+    """Truncate crypto wallet address for UI display."""
+    if not address or len(address) <= prefix_len + suffix_len:
+        return address
+    return f"{address[:prefix_len]}...{address[-suffix_len:]}"
+
+
+def create_hmac_signature(secret: str, message: str, algorithm: str = "sha256") -> str:
+    """Generate HMAC signature for API request authentication."""
+    hash_func = getattr(hashlib, algorithm.lower(), None)
+    if hash_func is None:
+        raise ValueError(f"Unsupported hash algorithm: {algorithm}")
+    return hmac.new(
+        secret.encode("utf-8"),
+        message.encode("utf-8"),
+        hash_func
+    ).hexdigest()
