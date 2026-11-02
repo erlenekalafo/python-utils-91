@@ -1,81 +1,58 @@
 import re
-from typing import Any, Dict, List
+from typing import Dict, Any, List
 
-BTC_ADDRESS_REGEX = r"^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}$"
 ETH_ADDRESS_REGEX = r"^0x[a-fA-F0-9]{40}$"
-SUPPORTED_ASSETS = {"BTC", "ETH", "USDT", "SOL"}
+ALLOWED_SYMBOLS = {"BTC", "ETH", "USDT", "SOL"}
 
-
-class ValidationError(Exception):
-    """Raised when incoming payload fails input validation."""
-
+class ProcessingError(Exception):
+    """Custom exception raised when payload validation or execution fails."""
     pass
 
+def validate_transaction_payload(payload: Dict[str, Any]) -> bool:
+    """Validate incoming crypto transaction payload for required fields and formats."""
+    required_fields = ["sender", "recipient", "amount", "symbol"]
+    for field in required_fields:
+        if field not in payload:
+            raise ProcessingError(f"Missing required field: {field}")
 
-class TransactionProcessor:
-    """Processes incoming crypto transactions with input validation."""
+    if not isinstance(payload["amount"], (int, float)) or payload["amount"] <= 0:
+        raise ProcessingError("Amount must be a positive number")
 
-    def __init__(self) -> None:
-        self.processed_count = 0
-        self.failed_count = 0
+    if payload["symbol"] not in ALLOWED_SYMBOLS:
+        raise ProcessingError(f"Unsupported symbol: {payload['symbol']}")
 
-    def validate_transaction(self, tx: Dict[str, Any]) -> None:
-        """Validates structure and field types of a crypto transaction."""
-        if not isinstance(tx, dict):
-            raise ValidationError("Transaction payload must be a dictionary")
+    if not re.match(ETH_ADDRESS_REGEX, payload["sender"]):
+        raise ProcessingError("Invalid sender Ethereum address format")
 
-        required_keys = {"tx_id", "symbol", "recipient", "amount"}
-        missing_keys = required_keys - tx.keys()
-        if missing_keys:
-            raise ValidationError(
-                f"Missing required fields: {', '.join(missing_keys)}"
-            )
+    if not re.match(ETH_ADDRESS_REGEX, payload["recipient"]):
+        raise ProcessingError("Invalid recipient Ethereum address format")
 
-        symbol = str(tx["symbol"]).upper()
-        if symbol not in SUPPORTED_ASSETS:
-            raise ValidationError(f"Unsupported crypto asset: {tx['symbol']}")
+    return True
 
-        amount = tx["amount"]
-        if not isinstance(amount, (int, float)) or amount <= 0:
-            raise ValidationError(
-                f"Invalid amount {amount}: must be a positive number"
-            )
-
-        recipient = str(tx["recipient"])
-        if symbol in ("ETH", "USDT"):
-            if not re.match(ETH_ADDRESS_REGEX, recipient):
-                raise ValidationError(
-                    f"Invalid Ethereum address format: {recipient}"
-                )
-        elif symbol == "BTC":
-            if not re.match(BTC_ADDRESS_REGEX, recipient):
-                raise ValidationError(
-                    f"Invalid Bitcoin address format: {recipient}"
-                )
-
-    def process_batch(self, batch: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Main processing loop that validates and prepares transaction batch."""
-        successful_txs = []
-
-        for raw_tx in batch:
-            try:
-                # Validate input fields before processing
-                self.validate_transaction(raw_tx)
-
-                # Transform and queue valid transaction
-                processed_tx = {
-                    "tx_id": str(raw_tx["tx_id"]),
-                    "symbol": str(raw_tx["symbol"]).upper(),
-                    "recipient": str(raw_tx["recipient"]),
-                    "amount": float(raw_tx["amount"]),
-                    "status": "VALIDATED",
-                }
-                successful_txs.append(processed_tx)
-                self.processed_count += 1
-
-            except ValidationError:
-                self.failed_count += 1
-                # Skip invalid payload safely without halting loop
-                continue
-
-        return successful_txs
+def process_transaction_queue(transactions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Main processing loop that validates and processes a list of transactions."""
+    processed_results = []
+    
+    for idx, tx in enumerate(transactions):
+        try:
+            # Validate input payload before processing
+            validate_transaction_payload(tx)
+            
+            # Simulate transaction processing
+            result = {
+                "tx_id": idx + 1,
+                "status": "success",
+                "amount": tx["amount"],
+                "symbol": tx["symbol"],
+                "from": tx["sender"],
+                "to": tx["recipient"]
+            }
+            processed_results.append(result)
+        except ProcessingError as err:
+            processed_results.append({
+                "tx_id": idx + 1,
+                "status": "rejected",
+                "reason": str(err)
+            })
+            
+    return processed_results
