@@ -1,28 +1,31 @@
 import logging
 import sys
-from datetime import datetime
+from typing import Optional
 
-def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
-    """Configures a standardized logger for crypto operations."""
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-
-    if not logger.handlers:
+class CryptoLogger:
+    """Centralized logger for crypto transaction monitoring."""
+    def __init__(self, name: str = "crypto-utils"):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.INFO)
         handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
-        )
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
-        logger.addHandler(handler)
+        self.logger.addHandler(handler)
 
-    return logger
+    def log_error(self, operation: str, error: Exception, context: Optional[dict] = None) -> None:
+        """Handles edge case logging with safe context extraction."""
+        try:
+            error_type = type(error).__name__
+            details = f"Context: {context}" if context else "No context provided"
+            
+            if isinstance(error, (ValueError, TypeError, KeyError)):
+                self.logger.error(f"Invalid input during {operation}: {error_type} - {error} | {details}")
+            elif isinstance(error, ConnectionError):
+                self.logger.critical(f"Network failure during {operation}: {error} | Check RPC connectivity")
+            else:
+                self.logger.exception(f"Unexpected runtime error during {operation}: {error}")
+        except Exception as e:
+            # Fallback to prevent logging loop if stream is corrupted
+            print(f"Critical logging failure: {e}", file=sys.stderr)
 
-def log_transaction(logger: logging.Logger, tx_hash: str, status: str, amount: float):
-    """Utility for standardized transaction audit logging."""
-    timestamp = datetime.utcnow().isoformat()
-    logger.info(f"[{timestamp}] TX: {tx_hash} | STATUS: {status} | AMT: {amount:.8f}")
-
-def log_error(logger: logging.Logger, operation: str, error: Exception):
-    """Formatted error reporting for crypto network failures."""
-    logger.error(f"Operation '{operation}' failed: {str(error)}", exc_info=True)
+logger = CryptoLogger()
