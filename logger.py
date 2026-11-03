@@ -2,30 +2,29 @@ import logging
 import sys
 from typing import Optional
 
-class CryptoLogger:
-    """Centralized logger for crypto transaction monitoring."""
-    def __init__(self, name: str = "crypto-utils"):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.INFO)
+def get_crypto_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+    """Configures a standardized logger for crypto utility modules."""
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+
+    if not logger.handlers:
         handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter(
+            '%(asctime)s | %(name)s | %(levelname)s | %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
         handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+        logger.addHandler(handler)
 
-    def log_error(self, operation: str, error: Exception, context: Optional[dict] = None) -> None:
-        """Handles edge case logging with safe context extraction."""
-        try:
-            error_type = type(error).__name__
-            details = f"Context: {context}" if context else "No context provided"
-            
-            if isinstance(error, (ValueError, TypeError, KeyError)):
-                self.logger.error(f"Invalid input during {operation}: {error_type} - {error} | {details}")
-            elif isinstance(error, ConnectionError):
-                self.logger.critical(f"Network failure during {operation}: {error} | Check RPC connectivity")
-            else:
-                self.logger.exception(f"Unexpected runtime error during {operation}: {error}")
-        except Exception as e:
-            # Fallback to prevent logging loop if stream is corrupted
-            print(f"Critical logging failure: {e}", file=sys.stderr)
+    return logger
 
-logger = CryptoLogger()
+class CryptoLogger:
+    """Helper class for tracking transactional events."""
+    def __init__(self, name: str) -> None:
+        self.logger = get_crypto_logger(name)
+
+    def log_trade(self, symbol: str, amount: float, price: float) -> None:
+        self.logger.info(f"Trade executed: {symbol} | Qty: {amount} | Price: {price}")
+
+    def log_error(self, operation: str, error: Exception) -> None:
+        self.logger.error(f"Failed {operation}: {str(error)}")
