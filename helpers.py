@@ -1,46 +1,28 @@
 import hashlib
 import hmac
-from typing import Union
+import base64
+from typing import Optional
 
-SATOSHIS_PER_BTC = 100_000_000
-GWEI_PER_ETH = 1_000_000_000
+def generate_signature(api_secret: str, message: str) -> str:
+    """Creates an HMAC SHA256 signature for API requests."""
+    secret_bytes = api_secret.encode('utf-8')
+    message_bytes = message.encode('utf-8')
+    signature = hmac.new(secret_bytes, message_bytes, hashlib.sha256).hexdigest()
+    return signature
 
-
-def btc_to_satoshi(btc_amount: Union[int, float]) -> int:
-    """Convert Bitcoin amount to Satoshis."""
-    if btc_amount < 0:
-        raise ValueError("Amount cannot be negative")
-    return int(round(btc_amount * SATOSHIS_PER_BTC))
-
-
-def satoshi_to_btc(satoshi_amount: int) -> float:
-    """Convert Satoshis to Bitcoin amount."""
-    if satoshi_amount < 0:
-        raise ValueError("Amount cannot be negative")
-    return satoshi_amount / SATOSHIS_PER_BTC
-
-
-def eth_to_gwei(eth_amount: Union[int, float]) -> int:
-    """Convert Ether amount to Gwei."""
-    if eth_amount < 0:
-        raise ValueError("Amount cannot be negative")
-    return int(round(eth_amount * GWEI_PER_ETH))
-
-
-def truncate_address(address: str, prefix_len: int = 6, suffix_len: int = 4) -> str:
-    """Truncate crypto wallet address for UI display."""
-    if not address or len(address) <= prefix_len + suffix_len:
+def truncate_address(address: str, length: int = 8) -> str:
+    """Shortens a crypto address for cleaner display."""
+    if len(address) <= length * 2:
         return address
-    return f"{address[:prefix_len]}...{address[-suffix_len:]}"
+    return f"{address[:length]}...{address[-length:]}"
 
+def format_crypto_amount(amount: float, precision: int = 8) -> str:
+    """Formats floats to fixed precision strings."""
+    return f"{amount:.{precision}f}".rstrip('0').rstrip('.')
 
-def create_hmac_signature(secret: str, message: str, algorithm: str = "sha256") -> str:
-    """Generate HMAC signature for API request authentication."""
-    hash_func = getattr(hashlib, algorithm.lower(), None)
-    if hash_func is None:
-        raise ValueError(f"Unsupported hash algorithm: {algorithm}")
-    return hmac.new(
-        secret.encode("utf-8"),
-        message.encode("utf-8"),
-        hash_func
-    ).hexdigest()
+def decode_base64_key(encoded_key: str) -> bytes:
+    """Decodes base64 string to raw key bytes."""
+    try:
+        return base64.b64decode(encoded_key)
+    except Exception:
+        raise ValueError("Invalid base64 encoding for key")
