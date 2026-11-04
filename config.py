@@ -1,37 +1,34 @@
-import os
 import json
+import os
 from typing import Any, Dict
 
 class ConfigLoader:
-    """Handles loading and merging of crypto app configurations."""
+    """Handles loading and merging of crypto application settings."""
     
     DEFAULTS = {
-        "rpc_url": "https://mainnet.infura.io",
+        "rpc_url": "https://mainnet.infura.io/v3/",
         "timeout": 30,
-        "retries": 3,
-        "verify_ssl": True
+        "retry_attempts": 3,
+        "log_level": "INFO"
     }
 
     def __init__(self, config_path: str = "config.json"):
-        self.config_path = config_path
-        self.settings = self.DEFAULTS.copy()
-        self._load_file()
+        self.path = config_path
+        self.config = self.DEFAULTS.copy()
+        self._load()
 
-    def _load_file(self) -> None:
-        """Load settings from JSON file if it exists."""
-        if os.path.exists(self.config_path):
+    def _load(self) -> None:
+        if os.path.exists(self.path):
             try:
-                with open(self.config_path, "r") as f:
+                with open(self.path, "r") as f:
                     user_config = json.load(f)
-                    self.settings.update(user_config)
+                    self.config.update(user_config)
             except (json.JSONDecodeError, IOError):
                 pass
 
     def get(self, key: str, default: Any = None) -> Any:
-        """Retrieve a configuration value by key."""
-        return self.settings.get(key, default)
+        return self.config.get(key, default)
 
     @property
     def all(self) -> Dict[str, Any]:
-        """Return the full configuration dictionary."""
-        return self.settings
+        return self.config.copy()
