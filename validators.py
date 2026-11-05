@@ -1,24 +1,42 @@
 import re
-from typing import Union
+from typing import Any, Optional
 
-# Validation patterns for crypto addresses and keys
-BTC_ADDRESS_PATTERN = re.compile(r'^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$')
-ETH_ADDRESS_PATTERN = re.compile(r'^0x[a-fA-F0-9]{40}$')
+# regex patterns for crypto inputs
+ADDRESS_PATTERN = re.compile(r'^(0x)?[a-fA-F0-9]{40}$')
+HASH_PATTERN = re.compile(r'^[a-fA-F0-9]{64}$')
 
-def validate_address(address: str, chain: str) -> bool:
-    """Validates cryptocurrency addresses against chain-specific regex."""
-    if chain.upper() == "BTC":
-        return bool(BTC_ADDRESS_PATTERN.match(address))
-    if chain.upper() == "ETH":
-        return bool(ETH_ADDRESS_PATTERN.match(address))
-    return False
+class InputValidationError(Exception):
+    """Custom exception for validation failures"""
+    pass
 
-def validate_checksum(data: str, expected_length: int = 64) -> bool:
-    """Checks hex string format and length for hashes."""
-    if not isinstance(data, str) or len(data) != expected_length:
-        return False
-    return all(c in "0123456789abcdefABCDEF" for c in data)
+def validate_crypto_address(address: str) -> bool:
+    """Check if string is a valid hexadecimal address"""
+    if not ADDRESS_PATTERN.match(address):
+        raise InputValidationError(f"Invalid address format: {address}")
+    return True
 
-def sanitize_input(user_input: Union[str, int]) -> str:
-    """Basic sanitization for crypto operation inputs."""
-    return str(user_input).strip().lower()
+def validate_tx_hash(tx_hash: str) -> bool:
+    """Check if string is a valid sha256 hash"""
+    if not HASH_PATTERN.match(tx_hash):
+        raise InputValidationError(f"Invalid transaction hash: {tx_hash}")
+    return True
+
+def sanitize_numeric_input(value: Any) -> float:
+    """Ensure input is a positive decimal number"""
+    try:
+        casted = float(value)
+        if casted < 0:
+            raise ValueError
+        return casted
+    except (TypeError, ValueError):
+        raise InputValidationError(f"Invalid numeric value provided: {value}")
+
+def validate_processing_payload(payload: dict) -> None:
+    """Main validator for processing pipeline payloads"""
+    required_keys = {'address', 'amount', 'tx_hash'}
+    if not required_keys.issubset(payload.keys()):
+        raise InputValidationError("Missing required payload keys")
+    
+    validate_crypto_address(payload['address'])
+    validate_tx_hash(payload['tx_hash'])
+    sanitize_numeric_input(payload['amount'])
