@@ -1,30 +1,27 @@
 import hashlib
 import hmac
-import base64
-import json
+import time
+from typing import Dict, Any
 
-def generate_signature(secret: str, message: str) -> str:
-    """Generates HMAC-SHA256 signature for crypto API requests."""
+def generate_signature(api_secret: str, payload: str) -> str:
+    """Generates HMAC-SHA256 signature for API requests."""
     return hmac.new(
-        secret.encode('utf-8'),
-        message.encode('utf-8'),
+        api_secret.encode('utf-8'),
+        payload.encode('utf-8'),
         hashlib.sha256
     ).hexdigest()
 
-def format_payload(data: dict) -> str:
-    """Sorts keys and serializes payload to JSON string."""
-    return json.dumps(data, sort_keys=True, separators=(',', ':'))
+def normalize_order_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Standardizes incoming crypto order dictionaries."""
+    return {
+        "symbol": str(data.get("s", "")).upper(),
+        "price": float(data.get("p", 0.0)),
+        "quantity": float(data.get("q", 0.0)),
+        "side": str(data.get("S", "")).lower(),
+        "timestamp": int(data.get("t", time.time() * 1000))
+    }
 
-def encode_base64(data: str) -> str:
-    """Converts string data to base64 encoded format."""
-    return base64.b64encode(data.encode('utf-8')).decode('utf-8')
-
-def validate_ticker(ticker: str) -> bool:
-    """Verifies crypto ticker formatting conventions."""
-    if not ticker or len(ticker) < 2 or len(ticker) > 10:
-        return False
-    return ticker.isalnum()
-
-def calculate_fee(amount: float, rate: float = 0.001) -> float:
-    """Calculates trading fee based on fixed rate."""
-    return round(amount * rate, 8)
+def validate_checksum(data: str, expected_hash: str) -> bool:
+    """Verifies data integrity using SHA256 checksums."""
+    actual_hash = hashlib.sha256(data.encode('utf-8')).hexdigest()
+    return hmac.compare_digest(actual_hash, expected_hash)
