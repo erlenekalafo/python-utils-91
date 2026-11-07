@@ -1,30 +1,30 @@
 import logging
-import sys
-from typing import Optional
+from logging.handlers import RotatingFileHandler
+import os
 
-def get_crypto_logger(name: str, level: int = logging.INFO) -> logging.Logger:
-    """Configures a standardized logger for crypto utility modules."""
+def setup_logger(name: str, log_file: str = 'crypto_utils.log', level: int = logging.INFO) -> logging.Logger:
+    """
+    Configures a rotating file logger for cryptographic operations.
+    """
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
+    # Prevent duplicate handlers if logger is re-initialized
     if not logger.handlers:
-        handler = logging.StreamHandler(sys.stdout)
+        # 5MB per file, keep 3 backups
+        handler = RotatingFileHandler(
+            log_file, 
+            maxBytes=5 * 1024 * 1024, 
+            backupCount=3
+        )
+        
         formatter = logging.Formatter(
-            '%(asctime)s | %(name)s | %(levelname)s | %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
     return logger
 
-class CryptoLogger:
-    """Helper class for tracking transactional events."""
-    def __init__(self, name: str) -> None:
-        self.logger = get_crypto_logger(name)
-
-    def log_trade(self, symbol: str, amount: float, price: float) -> None:
-        self.logger.info(f"Trade executed: {symbol} | Qty: {amount} | Price: {price}")
-
-    def log_error(self, operation: str, error: Exception) -> None:
-        self.logger.error(f"Failed {operation}: {str(error)}")
+# Default application logger instance
+crypto_logger = setup_logger('crypto_utils')
