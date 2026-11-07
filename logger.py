@@ -2,16 +2,14 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 
-def setup_logger(name: str, log_file: str = 'crypto_utils.log', level: int = logging.INFO) -> logging.Logger:
-    """
-    Configures a rotating file logger for cryptographic operations.
-    """
+def setup_crypto_logger(name: str, log_file: str = 'crypto.log') -> logging.Logger:
+    """Initializes a rotating file logger for crypto operations."""
     logger = logging.getLogger(name)
-    logger.setLevel(level)
+    logger.setLevel(logging.INFO)
 
-    # Prevent duplicate handlers if logger is re-initialized
+    # Prevent duplicate handlers if re-initialized
     if not logger.handlers:
-        # 5MB per file, keep 3 backups
+        # 5MB per file, keep 3 backup files
         handler = RotatingFileHandler(
             log_file, 
             maxBytes=5 * 1024 * 1024, 
@@ -23,8 +21,10 @@ def setup_logger(name: str, log_file: str = 'crypto_utils.log', level: int = log
         )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
+        
+        # Optional: log to console as well
+        console = logging.StreamHandler()
+        console.setFormatter(formatter)
+        logger.addHandler(console)
 
     return logger
-
-# Default application logger instance
-crypto_logger = setup_logger('crypto_utils')
